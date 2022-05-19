@@ -5,6 +5,13 @@ const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Cube_Texture,
 
 // TODO: you should implement the required classes here or in another file.
 
+// Placeholder class for snowflakes
+class Snowflake {
+  constructor() {
+    this.pos = vec3(0, 0, 0)
+  }
+}
+
 export
 const Project_base = defs.Project_base =
     class Project_base extends Component
@@ -30,7 +37,9 @@ const Project_base = defs.Project_base =
           'ball' : new defs.Subdivision_Sphere( 7),
           'axis' : new defs.Axis_Arrows(),
           'cube' : new defs.Cube(),
-          'square' : new defs.Square()};
+          'square' : new defs.Square(),
+          'windmill' : new defs.Windmill(1),
+          'torus': new defs.Torus(15, 15, [[0,2],[0,1]])};
 
         // *** Materials: ***  A "material" used on individual shapes specifies all fields
         // that a Shader queries to light/color it properly.  Here we use a Phong shader.
@@ -103,6 +112,8 @@ const Project_base = defs.Project_base =
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = this.uniforms.animation_time/1000;
+
+        // todo: assign camera this way would make movement controls useless. Is this intended.
         Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -15), vec3 (0, 5, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/5,0,1,0)), this.uniforms );
 
         // const light_position = Mat4.rotation( angle,   1,0,0 ).times( vec4( 0,-1,1,0 ) ); !!!
@@ -113,11 +124,9 @@ const Project_base = defs.Project_base =
         // draw axis arrows.
         
         
-        
         this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
 
-        
-        
+
       }
     }
 
@@ -130,6 +139,9 @@ export class Project extends Project_base
   // the shapes.  We isolate that code so it can be experimented with on its own.
   // This gives you a very small code sandbox for editing a simple scene, and for
   // experimenting with matrix transformations.
+
+  snowflakes = [];
+  has_init = false;
   render_animation( caller )
   {                                                // display():  Called once per frame of animation.  For each shape that you want to
     // appear onscreen, place a .draw() call for it inside.  Each time, pass in a
@@ -156,7 +168,7 @@ export class Project extends Project_base
     // translation(), scale(), and rotation() to generate matrices, and the
     // function times(), which generates products of matrices.
 
-    const blue = color( 0,0,1,1 ), yellow = color( 1,0.7,0,1 ), 
+    const blue = color( 0,0,1,1 ), yellow = color( 1,0.7,0,1 ), white = color(1, 1, 1, 0.8),
           wall_color = color( 0.7, 1.0, 0.8, 1 ), 
           blackboard_color = color( 0.2, 0.2, 0.2, 1 );
 
@@ -164,12 +176,52 @@ export class Project extends Project_base
 
     // !!! Draw ground
     let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
-    this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
+
+    // Do not draw the ground
+    // this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
     this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
     this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.environment);
     // TODO: you should draw scene here.
     // TODO: you can change the wall and board as needed.
 
+    // this.shapes.windmill.draw(caller, this.uniforms, Mat4.translation(7,3,0), this.materials.metal);
+    //this.shapes.torus.draw(caller, this.uniforms, Mat4.translation(7,3,0).times(Mat4.scale(2,2,2)), {...this.materials.plastic, color: white});
+
+    if (!this.has_init) {
+      //todo: initialize based on parsed commands.
+      this.initialize_snowflakes();
+      this.has_init = true;
+    }
+
+    // Graph all snowflakes.
+    for (let each_snowflake of this.snowflakes) {
+      this.graph_snowflake(each_snowflake.pos, caller);
+    }
+  }
+
+  // Hardcoded value for testing purpose. Use parsed commands later.
+  initialize_snowflakes() {
+    this.snowflakes.push(new Snowflake());
+    this.snowflakes[0].pos = vec3(7, 3, 0);
+
+    this.snowflakes.push(new Snowflake());
+    this.snowflakes[1].pos = vec3(7, 3, 3);
+
+    this.snowflakes.push(new Snowflake());
+    this.snowflakes[2].pos = vec3(8, 2, 1);
+
+    this.snowflakes.push(new Snowflake());
+    this.snowflakes[3].pos = vec3(6, 3, 3);
+  }
+
+  // Given a vec3 that represents the center of the snowflake, graph it.
+  graph_snowflake(center, caller) {
+    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(0, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
+        {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
+    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(3.14 / 3, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
+        {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
+    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(6.28 / 3, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
+        {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
   }
 
   render_controls()
