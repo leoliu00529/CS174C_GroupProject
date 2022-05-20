@@ -59,6 +59,7 @@ const Shape = tiny.Shape =
           } else gl.drawArrays (gl[ type ], 0, Object.values (this.arrays)[ 0 ].length);
       }
       draw (webgl_manager, uniforms, model_transform, material, type = "TRIANGLES") {
+          webgl_manager.DEPTH_TEST = false;
           const gpu_instance = this.gpu_instances.get (webgl_manager.context) ||
                                this.copy_onto_graphics_card (webgl_manager.context);
           material.shader.activate (webgl_manager.context, gpu_instance.webGL_buffer_pointers, uniforms,

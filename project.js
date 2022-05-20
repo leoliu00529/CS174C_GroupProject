@@ -8,7 +8,27 @@ const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Cube_Texture,
 // Placeholder class for snowflakes
 class Snowflake {
   constructor() {
-    this.pos = vec3(0, 0, 0)
+    //const r = 5 * Math.sqrt(Math.random());
+    //const theta = Math.random() * Math.PI * 2;
+
+    var d, x, y, z;
+    do {
+        x = Math.random() * 10 - 5;
+        y = Math.random() * 2 + 3;
+        z = Math.random() * 10 - 5;
+        d = x*x + y*y + z*z;
+    } while(d > 25);
+
+    this.pos = vec3(x, y+5, z);
+    this.spin_axis = vec3( 0,0,0 ).randomized(1).normalized();
+
+    this.angle = Math.random() * Math.PI * 2;
+    this.angular_velocity = 2;
+    this.velocity = vec3(Math.random()*0.1, -1*(2+Math.random()*0.4), Math.random()*0.1);
+  }
+  advance(timestep) {
+    this.pos = this.pos.plus(this.velocity.times(timestep));
+    this.angle += this.angular_velocity*timestep;
   }
 }
 
@@ -50,10 +70,13 @@ const Project_base = defs.Project_base =
         const tex_phong = new defs.Textured_Phong();
         const reflective = new defs.Reflective();
         const cube_map = new defs.Cube_Map();
+        const snow_shader = new defs.Snow_Shader();
         this.materials = {};
         this.materials.plastic = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( .9,.5,.9,1 ) }
         this.materials.metal   = { shader: phong, ambient: 1, diffusivity: 1, specularity:  1, color: color( .9,.5,.9,0.21 ) }
         this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
+        this.materials.snowflake = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/snowflake2.png" ) }
+        this.materials.snow = { shader: snow_shader, ambient: .5, texture: new Texture("assets/rgb.jpg")}
 
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
@@ -83,6 +106,24 @@ const Project_base = defs.Project_base =
         const cube_texture = new Cube_Texture(skybox_files);
         this.materials.reflective = { shader: reflective, ambient: .5, texture: cube_texture}// new Texture( "assets/rgb.jpg" ) }
         this.materials.environment = {shader: cube_map, texture: cube_texture}
+        
+        this.ground_res = 20;
+        this.terrain = [];
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.terrain.push (new Array (this.ground_res +1));
+          for(let z = 0; z <= this.ground_res; z++){
+            const x_pos = x/this.ground_res*10-5;
+            const z_pos = z/this.ground_res*10-5
+            if (x_pos**2 + z_pos**2 + 4 < 25)
+              this.terrain[x][z] = vec3(x_pos, 2.1, z_pos);
+            else
+              this.terrain[x][z] = vec3(x_pos, 2.1, z_pos);
+          }
+        }
+        const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
+        const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
+  
+        this.ground = { terrain : new defs.Grid_Patch(this.ground_res, this.ground_res, row_operation, column_operation )};
       }
       render_animation( caller )
       {                                                // display():  Called once per frame of animation.  We'll isolate out
@@ -175,53 +216,89 @@ export class Project extends Project_base
     const t = this.t = this.uniforms.animation_time/1000;
 
     // !!! Draw ground
-    let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
+    let floor_transform = Mat4.translation(0, 0.7, 0).times(Mat4.scale(5, 1.5, 5));
 
-    // Do not draw the ground
-    // this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
-    this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
+
+
+    // Draw Environment
     this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.environment);
+
+    // Draw terrain
+    //this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb)
     // TODO: you should draw scene here.
     // TODO: you can change the wall and board as needed.
 
     // this.shapes.windmill.draw(caller, this.uniforms, Mat4.translation(7,3,0), this.materials.metal);
     //this.shapes.torus.draw(caller, this.uniforms, Mat4.translation(7,3,0).times(Mat4.scale(2,2,2)), {...this.materials.plastic, color: white});
 
-    if (!this.has_init) {
-      //todo: initialize based on parsed commands.
-      this.initialize_snowflakes();
-      this.has_init = true;
+    // if (!this.has_init) {
+    //   //todo: initialize based on parsed commands.
+    //   this.initialize_snowflakes();
+    //   this.has_init = true;
+    // }
+    for (let i = 0; i < 3; i += 1) {
+      this.snowflakes.push(new Snowflake());
     }
 
-    // Graph all snowflakes.
+    // Advance snowflake logic and graph all snowflakes.
     for (let each_snowflake of this.snowflakes) {
-      this.graph_snowflake(each_snowflake.pos, caller);
+      each_snowflake.advance(0.01);
+      this.graph_snowflake(each_snowflake, caller);
+      if (each_snowflake.pos[1] <= 3){
+        const x = each_snowflake.pos[0];
+        const z = each_snowflake.pos[2];
+        const x_pos = Math.round((x + 5)/10*this.ground_res);
+        const z_pos= Math.round((z + 5)/10*this.ground_res);
+        if (x**2 + z**2 + 4 < 4.6**2)
+          this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.001,0));
+      }
     }
+    const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
+    const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
+    this.ground.terrain.update_points(caller, row_operation, column_operation);
+    // Draw terrain
+    //this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
+    this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
+    this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow)
+
+    this.snowflakes = this.snowflakes.filter(s => s.pos[1] >2);
+    this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
+    //this.shapes.cube.draw(caller, )
   }
 
   // Hardcoded value for testing purpose. Use parsed commands later.
   initialize_snowflakes() {
-    this.snowflakes.push(new Snowflake());
-    this.snowflakes[0].pos = vec3(7, 3, 0);
+    // this.snowflakes.push(new Snowflake());
+    // this.snowflakes[0].pos = vec3(7, 3, 0);
 
-    this.snowflakes.push(new Snowflake());
-    this.snowflakes[1].pos = vec3(7, 3, 3);
+    // this.snowflakes.push(new Snowflake());
+    // this.snowflakes[1].pos = vec3(7, 3, 3);
 
-    this.snowflakes.push(new Snowflake());
-    this.snowflakes[2].pos = vec3(8, 2, 1);
+    // this.snowflakes.push(new Snowflake());
+    // this.snowflakes[2].pos = vec3(8, 2, 1);
 
-    this.snowflakes.push(new Snowflake());
-    this.snowflakes[3].pos = vec3(6, 3, 3);
+    // this.snowflakes.push(new Snowflake());
+    // this.snowflakes[3].pos = vec3(6, 3, 3);
+    for(let i = 0; i < 100; i++){
+      this.snowflakes.push(new Snowflake());
+    }
+
   }
 
   // Given a vec3 that represents the center of the snowflake, graph it.
-  graph_snowflake(center, caller) {
-    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(0, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
-        {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
-    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(3.14 / 3, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
-        {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
-    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(6.28 / 3, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
-        {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
+  graph_snowflake(each_snowflake, caller) {
+    // this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(0, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
+    //     {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
+    // this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(3.14 / 3, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
+    //     {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
+    // this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(center[0], center[1], center[2]).times(Mat4.rotation(6.28 / 3, center[0], center[1], center[2])).times(Mat4.scale(0.05, 0.5, 0.02)),
+    //     {...this.materials.plastic, color: color(1, 1, 1, 0.8)});
+
+    const center = each_snowflake.pos;
+    const angle = each_snowflake.angle;
+    const spin_axis = each_snowflake.spin_axis;
+    this.shapes.square.draw(caller, this.uniforms, Mat4.translation(...center).times(Mat4.rotation(angle, ...spin_axis)).times(Mat4.scale(.1, .1, .1)),
+            {...this.materials.snowflake, color: color(.4, .4, .4, 1.0)});
   }
 
   render_controls()
@@ -235,3 +312,4 @@ export class Project extends Project_base
     this.new_line();
   }
 }
+

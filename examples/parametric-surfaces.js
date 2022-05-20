@@ -138,11 +138,11 @@ class Parametric_Surfaces_Section extends Component
                                        : initial_corner_point;
       const column_operation = (t,p) =>  Mat4.translation( .2,0,0 ).times(p.to4(1)).to3();
                           // These two callbacks will step along s and t of the second sheet:
-      const row_operation_2    = (s,p)   => vec3(    -1,2*s-1,Math.random()/2 );
-      const column_operation_2 = (t,p,s) => vec3( 2*t-1,2*s-1,Math.random()/2 );
+      const row_operation_2    = (s,p)   => vec3(    -1,2*s-1,Math.random()/10 );
+      const column_operation_2 = (t,p,s) => vec3( 2*t-1,2*s-1,Math.random()/100 );
 
       this.shapes = { sheet : new defs.Grid_Patch( 10, 10, row_operation, column_operation ),
-                      sheet2: new defs.Grid_Patch( 10, 10, row_operation_2, column_operation_2 ) };
+                      sheet2: new defs.Grid_Patch( 10, 10, row_operation_2, column_operation ) };
     }
   init_section_1()
   { const initial_corner_point = vec3( -1,-1,0 );
@@ -215,7 +215,7 @@ class Parametric_Surfaces_Section extends Component
     let sample_two_arrays = (j,p,i) => sampler2(i).mix( sampler1(i), j );
 
 
-    this.shapes = { shell : new defs.Grid_Patch( 30, 30, sampler2, sample_two_arrays, [[0,1],[0,1]] )
+    this.shapes = { shell : new defs.Grid_Patch( 30, 30, sampler1, sample_two_arrays, [[0,1],[0,1]] )
     };
   }
   display_section_0( caller )

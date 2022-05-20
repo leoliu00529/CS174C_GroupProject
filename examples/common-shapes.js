@@ -224,6 +224,9 @@ const Grid_Patch = defs.Grid_Patch =
       constructor (rows, columns, next_row_function, next_column_function,
                    texture_coord_range = [[0, rows], [0, columns]]) {
           super ("position", "normal", "texture_coord");
+          this.rows = rows;
+          this.columns = columns;
+          this.texture_coord_range = texture_coord_range;
           let points = [];
           for (let r = 0; r <= rows; r++) {
               points.push (new Array (columns + 1));
@@ -272,6 +275,66 @@ const Grid_Patch = defs.Grid_Patch =
                       this.indices.push (h * (columns + 1) + columns * ((i + (j % 2)) % 2) + (~~((j % 3) / 2) ?
                         (~~(i / 2) + 2 * (i % 2)) : (~~(i / 2) + 1)));
       }
+      update_points(webgl_manager, next_row_function, next_column_function) {
+        let texture_coord_range = this.texture_coord_range;
+        let rows = this.rows;
+        let columns = this.columns;
+
+        this.arrays.position = [];
+        this.arrays.normal = [];
+        this.arrays.texture_coord = [];
+        this.indices = [];
+
+        let points = [];
+        for (let r = 0; r <= rows; r++) {
+        points.push (new Array (columns + 1));
+        // Allocate a 2D array. Use next_row_function to generate the start point of each row. Pass in the
+        // progress ratio, and the previous point if it existed.
+        points[ r ][ 0 ] = next_row_function (r / rows, points[ r - 1 ] && points[ r - 1 ][ 0 ]);
+        }
+        // From those, use next_column function to generate the remaining points:
+        for (let r = 0; r <= rows; r++)
+        for (let c = 0; c <= columns; c++) {
+            if (c > 0) points[ r ][ c ] = next_column_function (c / columns, points[ r ][ c - 1 ], r / rows);
+
+            this.arrays.position.push (points[ r ][ c ]);
+            // Interpolate texture coords from a provided range.
+            const a1 = c / columns, a2 = r / rows, x_range = texture_coord_range[ 0 ],
+                    y_range                                  = texture_coord_range[ 1 ];
+            this.arrays.texture_coord.push (
+                vec ((a1) * x_range[ 1 ] + (1 - a1) * x_range[ 0 ], (a2) * y_range[ 1 ] + (1 - a2) * y_range[ 0 ]));
+        }
+        for (let r = 0; r <= rows; r++)
+        // Generate normals by averaging the cross products of all defined neighbor pairs.
+        for (let c = 0; c <= columns; c++) {
+            let curr = points[ r ][ c ], neighbors = new Array (4), normal = vec3 (0, 0, 0);
+            // Store each neighbor by rotational order.
+            for (let [i, dir] of [[-1, 0], [0, 1], [1, 0], [0, -1]].entries ())
+                // Leave "undefined" in the array wherever we hit a boundary.
+                neighbors[ i ] = points[ r + dir[ 1 ] ] && points[ r + dir[ 1 ] ][ c + dir[ 0 ] ];
+
+            // Take cross-products of pairs of neighbors, proceeding in consistent rotational direction through
+            // the pairs:
+            for (let i = 0; i < 4; i++)
+                if (neighbors[ i ] && neighbors[ (i + 1) % 4 ])
+                    normal =
+                        normal.plus (neighbors[ i ].minus (curr).cross (neighbors[ (i + 1) % 4 ].minus (curr)));
+            normal.normalize ();           // Normalize the sum to get the average vector.
+            // Store the normal if it's valid (not NaN or zero length), otherwise use a default:
+            if (normal.every (x => x == x) && normal.norm () > .01) this.arrays.normal.push (normal.copy ());
+            else this.arrays.normal.push (vec3 (0, 0, 1));
+        }
+
+        // Generate an index sequence like this (if #columns is 10):
+        // "1 11 0  11 1 12  2 12 1  12 2 13  3 13 2  13 3 14  4 14 3..."
+        for (var h = 0; h < rows; h++)
+        for (var i = 0; i < 2 * columns; i++)
+            for (var j = 0; j < 3; j++)
+                this.indices.push (h * (columns + 1) + columns * ((i + (j % 2)) % 2) + (~~((j % 3) / 2) ?
+                    (~~(i / 2) + 2 * (i % 2)) : (~~(i / 2) + 1)));
+        
+        this.copy_onto_graphics_card(webgl_manager.context);
+        }
       static sample_array (array, ratio) {
           const frac = ratio * (array.length - 1), alpha = frac - Math.floor (frac);
           return array[ Math.floor (frac) ].mix (array[ Math.ceil (frac) ], alpha);
