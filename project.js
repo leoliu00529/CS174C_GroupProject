@@ -305,7 +305,13 @@ export class Project extends Project_base
   clear_terrain() {
     super.init_terrain();
   }
-  
+
+  wind_blow_left() {
+    for (let each of this.snowflakes) {
+      each.velocity = vec3(each.velocity[0] - 0.5, each.velocity[1], each.velocity[2]);
+    }
+  }
+
   render_controls()
   {                                 
     // render_controls(): Sets up a panel of interactive HTML elements, including
@@ -315,7 +321,12 @@ export class Project extends Project_base
     // TODO: You can add your button events for debugging. (optional)
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
+    this.key_triggered_button( "Wind Blow Left", [ "Shift", "a" ], this.wind_blow_left );
+    this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
+
+
+
   }
 }
 
