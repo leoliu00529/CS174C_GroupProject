@@ -42,6 +42,7 @@ const Project_base = defs.Project_base =
       // scene demonstrating a few concepts.  A subclass of it, Assignment2,
       // exposes only the display() method, which actually places and draws the shapes,
       // isolating that code so it can be experimented with on its own.
+
       init()
       {
         console.log("init")
@@ -76,7 +77,7 @@ const Project_base = defs.Project_base =
         this.materials.metal   = { shader: phong, ambient: 1, diffusivity: 1, specularity:  1, color: color( .9,.5,.9,0.21 ) }
         this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
         this.materials.snowflake = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/snowflake2.png" ) }
-        this.materials.snow = { shader: snow_shader, ambient: .5, texture: new Texture("assets/rgb.jpg")}
+        this.materials.snow = { shader: phong, ambient: 0.2, texture: new Texture("assets/snow.png")}
 
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
@@ -108,6 +109,16 @@ const Project_base = defs.Project_base =
         this.materials.environment = {shader: cube_map, texture: cube_texture}
         
         this.ground_res = 20;
+        this.init_terrain();
+        // const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
+        // const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
+        const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
+        const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
+  
+        this.ground = { terrain : new defs.Grid_Patch(this.ground_res, this.ground_res, row_operation, column_operation )};
+      }
+
+      init_terrain() {
         this.terrain = [];
         for (let x = 0; x <= this.ground_res; x ++){
           this.terrain.push (new Array (this.ground_res +1));
@@ -120,11 +131,8 @@ const Project_base = defs.Project_base =
               this.terrain[x][z] = vec3(x_pos, 2.1, z_pos);
           }
         }
-        const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
-        const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
-  
-        this.ground = { terrain : new defs.Grid_Patch(this.ground_res, this.ground_res, row_operation, column_operation )};
       }
+
       render_animation( caller )
       {                                                // display():  Called once per frame of animation.  We'll isolate out
         // the code that actually draws things into Assignment2, a
@@ -161,13 +169,6 @@ const Project_base = defs.Project_base =
         // !!! Light changed here
         const light_position = vec4(20, 20, 20, 1.0);
         this.uniforms.lights = [ defs.Phong_Shader.light_source( light_position, color( 1,1,1,1 ), 1000000 ) ];
-
-        // draw axis arrows.
-        
-        
-        this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
-
-
       }
     }
 
@@ -210,7 +211,7 @@ export class Project extends Project_base
     // function times(), which generates products of matrices.
 
     const blue = color( 0,0,1,1 ), yellow = color( 1,0.7,0,1 ), white = color(1, 1, 1, 0.8),
-          wall_color = color( 0.7, 1.0, 0.8, 1 ), 
+          wall_color = color( 0.7, 1.0, 0.8, 1 ),  black = color(0, 0, 0, 1),
           blackboard_color = color( 0.2, 0.2, 0.2, 1 );
 
     const t = this.t = this.uniforms.animation_time/1000;
@@ -301,6 +302,10 @@ export class Project extends Project_base
             {...this.materials.snowflake, color: color(.4, .4, .4, 1.0)});
   }
 
+  clear_terrain() {
+    super.init_terrain();
+  }
+  
   render_controls()
   {                                 
     // render_controls(): Sets up a panel of interactive HTML elements, including
@@ -310,6 +315,7 @@ export class Project extends Project_base
     // TODO: You can add your button events for debugging. (optional)
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
+    this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
   }
 }
 
