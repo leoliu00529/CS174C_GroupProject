@@ -120,27 +120,8 @@ const Project_base = defs.Project_base =
         // snow
         
         this.ground_res = 32;
-        this.terrain = [];
-        this.temp_terrain = [];
-        this.temp_terrain_2 = [];
-        for (let x = 0; x <= this.ground_res; x ++){
-          this.terrain.push (new Array (this.ground_res +1));
-          this.temp_terrain.push (new Array (this.ground_res +1));
-          this.temp_terrain_2.push (new Array (this.ground_res +1));
-          for(let z = 0; z <= this.ground_res; z++){
-            const x_pos = x/this.ground_res*10-5;
-            const z_pos = z/this.ground_res*10-5
-            let h = Math.sin(x/this.ground_res*Math.PI+Math.PI/2)*Math.sin(z/this.ground_res*Math.PI);
-            if (h < -.1){
-              h -= Math.random()*.1;
-              h *= 7;
-            } else if( h > .1){
-              h += Math.random()*.1;
-            }
-
-            this.terrain[x][z] = vec3(x_pos, h+2.1, z_pos);
-          }
-        }
+        this.init_terrain();
+        
         const row_operation    = (s,p)   => this.terrain[0][Math.round(s*this.ground_res)];
         const column_operation = (t,p,s) => this.terrain[Math.round(t*this.ground_res)][Math.round(s*this.ground_res)];
   
@@ -211,6 +192,30 @@ const Project_base = defs.Project_base =
                       snow : new defs.Grid_Patch(this.ground_res*4, 2, row_operation_2, column_operation_2)};
       }
 
+      init_terrain () {
+        this.terrain = [];
+        this.temp_terrain = [];
+        this.temp_terrain_2 = [];
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.terrain.push (new Array (this.ground_res +1));
+          this.temp_terrain.push (new Array (this.ground_res +1));
+          this.temp_terrain_2.push (new Array (this.ground_res +1));
+          for(let z = 0; z <= this.ground_res; z++){
+            const x_pos = x/this.ground_res*10-5;
+            const z_pos = z/this.ground_res*10-5
+            let h = Math.sin(x/this.ground_res*Math.PI+Math.PI/2)*Math.sin(z/this.ground_res*Math.PI);
+            if (h < -.1){
+              h -= Math.random()*.1;
+              h *= 7;
+            } else if( h > .1){
+              h += Math.random()*.1;
+            }
+
+            this.terrain[x][z] = vec3(x_pos, h+2.1, z_pos);
+          }
+        }
+      }
+
       render_animation( caller )
       {                                                // display():  Called once per frame of animation.  We'll isolate out
         // the code that actually draws things into Assignment2, a
@@ -231,8 +236,8 @@ const Project_base = defs.Project_base =
 
           // !!! Camera changed here
           // TODO: you can change the camera as needed.
-          //Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -10), vec3 (0, 5, 0), vec3 (0, 1, 0)), this.uniforms );
-          Shader.assign_camera( Mat4.look_at (vec3(8.0, -5.5, 8.0), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
+          Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -10), vec3 (0, 5, 0), vec3 (0, 1, 0)), this.uniforms );
+          //Shader.assign_camera( Mat4.look_at (vec3(8.0, -5.5, 8.0), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
         }
         
         this.uniforms.projection_transform = Mat4.perspective( Math.PI/4, caller.width/caller.height, 1, 100 );
@@ -242,7 +247,7 @@ const Project_base = defs.Project_base =
         const t = this.t = this.uniforms.animation_time/1000;
 
         // todo: assign camera this way would make movement controls useless. Is this intended.
-        //Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -15), vec3 (0, 5, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/5,0,1,0)), this.uniforms );
+        Shader.assign_camera( Mat4.look_at (vec3 (0, 7, -18), vec3 (0, 6, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/4,0,1,0)), this.uniforms );
 
         // const light_position = Mat4.rotation( angle,   1,0,0 ).times( vec4( 0,-1,1,0 ) ); !!!
         // !!! Light changed here
@@ -296,8 +301,7 @@ export class Project extends Project_base
 
     const t = this.t = this.uniforms.animation_time/1000;
 
-    // !!! Draw ground
-    let floor_transform = Mat4.translation(0, 0.7, 0).times(Mat4.scale(5.01, 1.5, 5.01));
+ 
 
 
 
@@ -344,7 +348,14 @@ export class Project extends Project_base
     // Blur terrain to make it smoother
     for(let i = 0; i <= this.ground_res; i++) {
       for(let j = 0; j <= this.ground_res; j++) {
-        if (i ==0 || i == this.ground_res || j == 0 || j == this.ground_res)
+        if ((i ==0 || i == this.ground_res) && (j != 0 && j != this.ground_res)) {
+          let h_blur = this.terrain[i][j][1]+this.terrain[i][j-1][1]+this.terrain[i][j+1][1];
+          this.temp_terrain[i][j] = vec3(this.terrain[i][j][0], h_blur/3, this.terrain[i][j][2]);
+        } else if ((j ==0 || j == this.ground_res) && (i != 0 && i != this.ground_res)) {
+          let h_blur = this.terrain[i][j][1]+this.terrain[i-1][j][1]+this.terrain[i+1][j][1];
+          this.temp_terrain[i][j] = vec3(this.terrain[i][j][0], h_blur/3, this.terrain[i][j][2]);
+        } 
+        else if (i ==0 || i == this.ground_res || j == 0 || j == this.ground_res)
           this.temp_terrain[i][j] = this.terrain[i][j];
         else {
           let h_blur = this.terrain[i][j][1]+this.terrain[i+1][j][1]+this.terrain[i-1][j][1]+this.terrain[i][j+1][1]+this.terrain[i][j-1][1];
@@ -354,7 +365,14 @@ export class Project extends Project_base
     }
     for(let i = 0; i <= this.ground_res; i++) {
       for(let j = 0; j <= this.ground_res; j++) {
-        if (i ==0 || i == this.ground_res || j == 0 || j == this.ground_res)
+        if ((i ==0 || i == this.ground_res) && (j != 0 && j != this.ground_res)) {
+          let h_blur = this.temp_terrain[i][j][1]+this.temp_terrain[i][j-1][1]+this.temp_terrain[i][j+1][1];
+          this.temp_terrain_2[i][j] = vec3(this.temp_terrain[i][j][0], h_blur/3, this.temp_terrain[i][j][2]);
+        } else if ((j ==0 || j == this.ground_res) && (i != 0 && i != this.ground_res)) {
+          let h_blur = this.temp_terrain[i][j][1]+this.temp_terrain[i-1][j][1]+this.temp_terrain[i+1][j][1];
+          this.temp_terrain_2[i][j] = vec3(this.temp_terrain[i][j][0], h_blur/3, this.temp_terrain[i][j][2]);
+        } 
+        else if (i ==0 || i == this.ground_res || j == 0 || j == this.ground_res)
           this.temp_terrain_2[i][j] = this.temp_terrain[i][j];
         else {
           let h_blur = this.temp_terrain[i][j][1]+this.temp_terrain[i+1][j][1]+this.temp_terrain[i-1][j][1]+this.temp_terrain[i][j+1][1]+this.temp_terrain[i][j-1][1];
@@ -385,12 +403,19 @@ export class Project extends Project_base
     this.wall.snow.update_points(caller, row_operation_2, column_operation_2);
 
     //update water
-    if(this.update_water % 3 == 0){
+    if(this.update_water % 300 == 0){
+     this.water_u[this.water_res*3/4+1][this.water_res/2] = -1;
+     this.water_u[this.water_res*3/4][this.water_res/2] = -1;
+     this.water_u[this.water_res*3/4-1][this.water_res/2] = -1;
+    }
+
+    if(this.update_water % 2 == 0){
       for(let i = 1; i < this.water_res; i++){
         for(let j = 1; j < this.water_res; j++){
           if (this.water_v[i][j] < this.temp_terrain_2[i][j][1])
             continue;
           this.water_v[i][j] += (this.water_u[i-1][j]+this.water_u[i+1][j]+this.water_u[i][j-1]+this.water_u[i][j+1])/4 - this.water_u[i][j];
+          //this.water_v[i][j] = Math.min(this.water_v[i][j], 1)
         }
       }
       for(let i = 1; i < this.water_res; i++){
@@ -414,7 +439,10 @@ export class Project extends Project_base
     //this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
     
     //box
-    //this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
+    this.shapes.square.draw( caller, this.uniforms,  Mat4.translation(0, 0.61, -5.02).times(Mat4.scale(5.02, 1.5, 5.02)), { ...this.materials.plastic, color: blackboard_color} );
+    this.shapes.square.draw( caller, this.uniforms,  Mat4.translation(0, 0.61, 5.02).times(Mat4.scale(5.02, 1.5, 5.02)), { ...this.materials.plastic, color: blackboard_color} );
+    this.shapes.square.draw( caller, this.uniforms,  Mat4.rotation(Math.PI/2,0,1,0).times(Mat4.translation(0, 0.61, 5.02).times(Mat4.scale(5.02, 1.5, 5.02))), { ...this.materials.plastic, color: blackboard_color} );
+    this.shapes.square.draw( caller, this.uniforms,  Mat4.rotation(-Math.PI/2,0,1,0).times(Mat4.translation(0, 0.61, 5.02).times(Mat4.scale(5.02, 1.5, 5.02))), { ...this.materials.plastic, color: blackboard_color} );
     
     //snow
     this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow)
@@ -423,7 +451,8 @@ export class Project extends Project_base
     this.snowflakes = this.snowflakes.filter(s => s.pos[1] >2);
     this.water.surface.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
     this.wall.water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
-    
+    this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
+
     // glass
     this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
 
@@ -462,7 +491,7 @@ export class Project extends Project_base
     const center = each_snowflake.pos;
     const angle = each_snowflake.angle;
     const spin_axis = each_snowflake.spin_axis;
-    this.shapes.square.draw(caller, this.uniforms, Mat4.translation(...center).times(Mat4.rotation(angle, ...spin_axis)).times(Mat4.scale(.1, .1, .1)),
+    this.shapes.square.draw(caller, this.uniforms, Mat4.translation(...center).times(Mat4.rotation(angle, ...spin_axis)).times(Mat4.scale(.05, .05, .05)),
             {...this.materials.snowflake, color: color(.4, .4, .4, 1.0)});
   }
 
@@ -480,6 +509,9 @@ export class Project extends Project_base
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
+    this.new_line();
+    this.key_triggered_button( "Wind Blow Left", [ "Shift", "a" ], this.wind_blow_left );
+    this.new_line();
   }
 }
 

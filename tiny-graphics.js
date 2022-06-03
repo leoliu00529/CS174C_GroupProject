@@ -383,6 +383,7 @@ const Texture = tiny.Texture =
             // Asynchronously load an image
             const image = new Image();
             image.src = url;
+            gl.pixelStorei (gl.UNPACK_FLIP_Y_WEBGL, true);
             image.addEventListener('load', function() {
               // Now that the image has loaded upload it to the texture.
               gl.bindTexture(gl.TEXTURE_CUBE_MAP, gpu_instance.texture_buffer_pointer);
