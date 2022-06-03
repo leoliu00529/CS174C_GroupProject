@@ -3,6 +3,8 @@ import {tiny, defs} from './examples/common.js';
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Cube_Texture, Component } = tiny;
 
+import { Flag } from './flag.js';
+
 // TODO: you should implement the required classes here or in another file.
 
 // Placeholder class for snowflakes
@@ -72,7 +74,8 @@ const Project_base = defs.Project_base =
           'cube' : new defs.Cube(),
           'square' : new defs.Square(),
           'windmill' : new defs.Windmill(1),
-          'torus': new defs.Torus(15, 15, [[0,2],[0,1]])};
+          'torus': new defs.Torus(15, 15, [[0,2],[0,1]]),
+          'cylinder': new defs.Cylindrical_Tube(1, 10, [[0,2],[0,1]] )};
 
         // *** Materials: ***  A "material" used on individual shapes specifies all fields
         // that a Shader queries to light/color it properly.  Here we use a Phong shader.
@@ -88,6 +91,7 @@ const Project_base = defs.Project_base =
         this.materials = {};
         this.materials.plastic = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( .9,.5,.9,1 ) }
         this.materials.metal   = { shader: phong, ambient: 1, diffusivity: 1, specularity:  1, color: color( .9,.5,.9,0.21 ) }
+        this.materials.pure_color = { shader: phong, ambient: 1.0, diffusivity: 0, specularity: 0, color: color( .9,.5,.9,1 )}
         this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
         this.materials.snowflake = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/snowflake2.png" ) }
         //this.materials.snow = { shader: snow_shader, ambient: .5, texture: new Texture("assets/rgb.jpg")}
@@ -97,7 +101,6 @@ const Project_base = defs.Project_base =
 
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
-
 
         const skybox_files = [
           // 'assets/skybox/front.jpg',
@@ -199,6 +202,16 @@ const Project_base = defs.Project_base =
   
         this.wall = { water : new defs.Grid_Patch(this.ground_res, 2, row_operation_4, column_operation_4),
                       snow : new defs.Grid_Patch(this.ground_res*4, 2, row_operation_2, column_operation_2)};
+        
+        // flag
+        this.x_seg = 10;
+        this.y_seg = 10;
+        this.rest_dist = 0.1;
+        this.flag = new Flag(this.x_seg, this.y_seg, this.rest_dist);
+        console.log(this.flag);
+        this.time_step = 0.001;
+        this.t_simulated = 0.0;
+        this.simulation_speed = 1.0;
       }
 
       init_terrain () {
@@ -309,10 +322,6 @@ export class Project extends Project_base
           test = color( 1,0.7,0,.1 );
 
     const t = this.t = this.uniforms.animation_time/1000;
-
- 
-
-
 
     // Draw Environment
     this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.environment);
@@ -445,7 +454,7 @@ export class Project extends Project_base
     this.update_water ++;
 
     // Draw terrain
-    //this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
+    // this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
     
     //box
     this.shapes.square.draw( caller, this.uniforms,  Mat4.translation(0, 0.61, -5.02).times(Mat4.scale(5.02, 1.5, 5.02)), { ...this.materials.plastic, color: blackboard_color} );
@@ -462,12 +471,21 @@ export class Project extends Project_base
     this.wall.water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
     // this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
 
-    // glass
-    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
+    // // glass
+    // this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
 
-
-
-
+    // flag
+    let dt = this.dt = Math.min(1 / 60, this.uniforms.animation_delta_time / 1000);
+    dt *= this.simulation_speed;
+  
+    const t_next = this.t_simulated + dt;
+    while (this.t_simulated < t_next) {
+      this.flag.update(this.time_step);
+      this.t_simulated += this.time_step;
+    }
+  
+  
+    this.flag.draw(caller, this.uniforms, this.shapes, this.materials);  
   }
 
   // Hardcoded value for testing purpose. Use parsed commands later.
@@ -509,6 +527,9 @@ export class Project extends Project_base
     super.init_terrain();
   }
 
+  toggle_wind() {
+    this.flag.toggle_wind();
+  }
 
   render_controls()
   {                                 
@@ -520,6 +541,9 @@ export class Project extends Project_base
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
+    this.key_triggered_button( "Toggle flag wind", [ "Shift", "T" ], this.toggle_wind );
   }
+
+
 }
 
