@@ -471,8 +471,6 @@ export class Project extends Project_base
     this.wall.water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
     // this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
 
-    // // glass
-    // this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
 
     // flag
     let dt = this.dt = Math.min(1 / 60, this.uniforms.animation_delta_time / 1000);
@@ -486,6 +484,9 @@ export class Project extends Project_base
   
   
     this.flag.draw(caller, this.uniforms, this.shapes, this.materials);  
+
+    // // glass
+    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
   }
 
   // Hardcoded value for testing purpose. Use parsed commands later.
