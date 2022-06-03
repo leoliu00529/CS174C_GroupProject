@@ -26,8 +26,8 @@ class Snowflake {
     this.spin_axis = vec3( 0,0,0 ).randomized(1).normalized();
 
     this.angle = Math.random() * Math.PI * 2;
-    this.angular_velocity = 2;
-    this.velocity = vec3(Math.random()*-1, -3*(2+Math.random()*0.4), Math.random()*0.1);
+    this.angular_velocity = Math.random()*15+10;
+    this.velocity = vec3(Math.random()*0.1, -3*(2+Math.random()*0.4), Math.random()*0.3);
   }
   advance(timestep) {
     this.pos = this.pos.plus(this.velocity.times(timestep));
@@ -405,8 +405,8 @@ export class Project extends Project_base
     //update water
     if(this.update_water % 300 == 0){
      this.water_u[this.water_res*3/4+1][this.water_res/2] = -1;
-     this.water_u[this.water_res*3/4][this.water_res/2] = -1;
-     this.water_u[this.water_res*3/4-1][this.water_res/2] = -1;
+    //  this.water_u[this.water_res*3/4][this.water_res/2] = -1;
+    //  this.water_u[this.water_res*3/4-1][this.water_res/2] = -1;
     }
 
     if(this.update_water % 2 == 0){
@@ -420,7 +420,7 @@ export class Project extends Project_base
       }
       for(let i = 1; i < this.water_res; i++){
         for(let j = 1; j < this.water_res; j++){
-          this.water_v[i][j] *= 0.99;
+          this.water_v[i][j] *= 0.98;
           if (this.water_v[i][j] < this.temp_terrain_2[i][j][1])
             continue;
 
