@@ -262,6 +262,8 @@ const Textured_Phong = defs.Textured_Phong =
             vertex_worldspace = ( model_transform * vec4( position, 1.0 ) ).xyz;
                                               // Turn the per-vertex texture coordinate into an interpolated variable.
             f_tex_coord = texture_coord;
+            // if(length(vertex_worldspace - vec3(0,5,0)) > 5.0)
+            //   gl_FragDepth = 1.0;
           } `;
       }
       fragment_glsl_code () {        // ********* FRAGMENT SHADER *********
@@ -276,8 +278,10 @@ const Textured_Phong = defs.Textured_Phong =
             gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w );
                                                                      // Compute the final color with contributions from lights:
             gl_FragColor.xyz += phong_model_lights( normalize( N ), vertex_worldspace );
-            if(length(vertex_worldspace - vec3(0,5,0)) > 5.0)
-              gl_FragColor.w = 0.0;
+            // if(length(vertex_worldspace - vec3(0,5,0)) > 5.0) {
+            //   gl_FragColor.w = 0.0;
+            // }
+              
           } `;
       }
       update_GPU (context, gpu_addresses, uniforms, model_transform, material) {
@@ -346,9 +350,9 @@ const Textured_Phong = defs.Textured_Phong =
 
             gl_FragColor.xyz = reflection *vec3(0.2,0.2,0.2)+refraction*vec3(.7,.7,.7);
               
-            gl_FragColor.w = 0.6;
-            if(gl_FrontFacing)
-              gl_FragColor.w = 0.0;
+            gl_FragColor.w = .2;
+            // if(gl_FrontFacing)
+            //   gl_FragColor.w = 0.0;
 
 
           } `;
@@ -418,6 +422,142 @@ const Textured_Phong = defs.Textured_Phong =
           context.depthFunc(context.LEQUAL);
       }
   };
+
+  const Clouds = defs.Clouds =
+  class Clouds extends Phong_Shader {
+      vertex_glsl_code () {         // ********* VERTEX SHADER *********
+          return  `
+          attribute vec3 position;
+          varying vec4 v_position;
+          void main() {
+            v_position = vec4(position,1);
+            v_position.z = 0.97;
+            gl_Position = v_position;
+          } `;
+      }
+      fragment_glsl_code () {        // ********* FRAGMENT SHADER *********
+          return this.shared_glsl_code () +`
+          mat3 m = mat3(0.00, 0.80, 0.60, -0.80, 0.36, -0.48, -0.60, -0.48, 0.64);
+          float hash(float n) {
+            return fract(sin(n) * 43758.5453);
+          }
+        
+          float noise(vec3 x) {
+            vec3 p = floor(x);
+            vec3 f = fract(x);
+        
+            f = f * f * (3.0 - 2.0 * f);
+        
+            float n = p.x + p.y * 57.0 + 113.0 * p.z;
+        
+            float res = mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+                                mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
+                            mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+                                mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
+            return res;
+          }
+        
+          float fbm(vec3 p) {
+            float f = 0.0;
+            f += 0.5000 * noise(p); p = m * p * 2.02;
+            f += 0.2500 * noise(p); p = m * p * 2.03;
+            //f += 0.12500 * noise(p); p = m * p * 2.01;
+            //f += 0.06250 * noise(p);
+            return f;
+          }
+
+          precision mediump float;
+ 
+          uniform samplerCube texture;
+          uniform mat4 viewDirectionProjectionInverse;
+          uniform mat4 projection_camera_model_transform;
+           
+          varying vec4 v_position;
+
+
+          vec3 uCloudSize = vec3(0.4, 1.0, 0.4);
+          vec3 uSunPosition = vec3(1.0,2.0,1.0);
+          vec3 uCloudColor = vec3(1.0,1.0,1.0);
+          vec3 uSkyColor = vec3(0.0,0.0,0.1);
+          float uCloudSteps = 48.0;
+          float uShadowSteps = 8.0;
+          float uCloudLength = 16.0;
+          float uShadowLength = 2.0;
+          vec2 uResolution = vec2(1080,600);
+          // varying float uFocalLength;
+          // bool uRegress;
+
+          float cloudDepth(vec3 position) {
+            float ellipse = 1.0-length((position-vec3(0.0,6.0,0.0)) * uCloudSize*0.7);
+            float cloud = ellipse + fbm(position);
+        
+            return min(max(0.0, cloud), 1.0);
+          }
+
+          vec4 cloudMarch(float jitter, vec3 position, vec3 ray) {
+            float stepLength = uCloudLength / uCloudSteps;
+            float shadowStepLength = uShadowLength / uShadowSteps;
+        
+            vec3 lightDirection = normalize(uSunPosition);
+            vec3 cloudPosition = position + ray * jitter * stepLength;
+        
+            vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
+        
+            for (float i = 0.0; i < 100.0; i++) {
+              if (color.a < 0.1) break;
+        
+              float depth = cloudDepth(cloudPosition);
+              if (depth > 0.001) {
+                vec3 lightPosition = cloudPosition + lightDirection * jitter * shadowStepLength;
+        
+                float shadow = 0.0;
+                for (float s = 0.0; s < 8.0; s++) {
+                  lightPosition += lightDirection * shadowStepLength;
+                  shadow += cloudDepth(lightPosition);
+                }
+                shadow = exp((-shadow / uShadowSteps) * 3.0);
+        
+                float density = clamp((depth / uCloudSteps) * 20.0, 0.0, 1.0);
+                color.rgb += vec3(shadow * density) * uCloudColor * color.a;
+                color.a *= 1.0 - density;
+        
+                color.rgb += density * uSkyColor * color.a;
+                //color.rgb = vec3(1.0,1.0,1.0);
+              }
+        
+              cloudPosition += ray * stepLength;
+            }
+        
+            return color;
+          }
+
+
+          mat3 lookAt(vec3 target, vec3 origin) {
+            vec3 cw = normalize(origin - target);
+            vec3 cu = normalize(cross(cw, origin));
+            vec3 cv = normalize(cross(cu, cw));
+            return mat3(cu, cv, cw);
+          }
+
+
+          void main() {
+            vec2 pixel = (gl_FragCoord.xy * 2.0 - uResolution) / min(uResolution.x, uResolution.y);
+            //float jitter = uRegress ? hash(pixel.x + pixel.y * 50.0 + uTime) : 0.0;
+
+            mat3 camera = lookAt(camera_center, vec3(0.0, 1.0, 0.0));
+            //vec3 ray = (projection_camera_model_transform * normalize(vec4(pixel, 2.0, 1.0))).xyz;
+            vec3 ray = camera * normalize(vec3(pixel, 2.0));
+
+            vec4 color = cloudMarch(0.0, camera_center, ray);
+            //gl_FragColor = vec4(color.rgb + uSkyColor * color.a, 1.0);
+            gl_FragColor = vec4(color.rgb, 1.0-color.a);
+          } `;
+      }
+      update_GPU (context, gpu_addresses, uniforms, model_transform, material) {
+          super.update_GPU (context, gpu_addresses, uniforms, model_transform, material);
+      }
+  };
+
 
 const Fake_Bump_Map = defs.Fake_Bump_Map =
   class Fake_Bump_Map extends Textured_Phong {

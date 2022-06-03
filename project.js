@@ -12,19 +12,22 @@ class Snowflake {
     //const theta = Math.random() * Math.PI * 2;
 
     var d, x, y, z;
-    do {
-        x = Math.random() * 10 - 5;
-        y = Math.random() * 2 + 3;
-        z = Math.random() * 10 - 5;
-        d = x*x + y*y + z*z;
-    } while(d > 25);
+    // do {
+    //     x = Math.random() * 10 - 5;
+    //     y = Math.random() * 2 + 3;
+    //     z = Math.random() * 10 - 5;
+    //     d = x*x + y*y + z*z;
+    // } while(d > 25);
+    x = Math.random() * 10 - 5;
+    y = Math.random() * 1 + 4;
+    z = Math.random() * 10 - 5;
 
     this.pos = vec3(x, y+5, z);
     this.spin_axis = vec3( 0,0,0 ).randomized(1).normalized();
 
     this.angle = Math.random() * Math.PI * 2;
     this.angular_velocity = 2;
-    this.velocity = vec3(Math.random()*0.1, -1*(2+Math.random()*0.4), Math.random()*0.1);
+    this.velocity = vec3(Math.random()*-1, -3*(2+Math.random()*0.4), Math.random()*0.1);
   }
   advance(timestep) {
     this.pos = this.pos.plus(this.velocity.times(timestep));
@@ -72,15 +75,20 @@ const Project_base = defs.Project_base =
         const reflective = new defs.Reflective();
         const cube_map = new defs.Cube_Map();
         const snow_shader = new defs.Snow_Shader();
+        const cloud = new defs.Clouds();
         this.materials = {};
         this.materials.plastic = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( .9,.5,.9,1 ) }
         this.materials.metal   = { shader: phong, ambient: 1, diffusivity: 1, specularity:  1, color: color( .9,.5,.9,0.21 ) }
         this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
         this.materials.snowflake = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/snowflake2.png" ) }
-        this.materials.snow = { shader: phong, ambient: 0.2, texture: new Texture("assets/snow.png")}
+        //this.materials.snow = { shader: snow_shader, ambient: .5, texture: new Texture("assets/rgb.jpg")}
+        this.materials.snow = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( 1,1,1,1 ) }
+        this.materials.water = {shader: phong, ambient: .2, diffusivity: 1, specularity: .1, color: color(0, 0, 1, .95)};
+        this.materials.cloud = {shader: cloud};
 
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
+
 
         const skybox_files = [
           // 'assets/skybox/front.jpg',
@@ -105,32 +113,102 @@ const Project_base = defs.Project_base =
 
         ];
         const cube_texture = new Cube_Texture(skybox_files);
-        this.materials.reflective = { shader: reflective, ambient: .5, texture: cube_texture}// new Texture( "assets/rgb.jpg" ) }
-        this.materials.environment = {shader: cube_map, texture: cube_texture}
+        this.materials.reflective = { shader: reflective, ambient: .5, texture: cube_texture};// new Texture( "assets/rgb.jpg" ) }
+        this.materials.environment = {shader: cube_map, texture: cube_texture};
         
-        this.ground_res = 20;
-        this.init_terrain();
-        // const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
-        // const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
-        const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
-        const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
-  
-        this.ground = { terrain : new defs.Grid_Patch(this.ground_res, this.ground_res, row_operation, column_operation )};
-      }
-
-      init_terrain() {
+        
+        // snow
+        
+        this.ground_res = 32;
         this.terrain = [];
+        this.temp_terrain = [];
+        this.temp_terrain_2 = [];
         for (let x = 0; x <= this.ground_res; x ++){
           this.terrain.push (new Array (this.ground_res +1));
+          this.temp_terrain.push (new Array (this.ground_res +1));
+          this.temp_terrain_2.push (new Array (this.ground_res +1));
           for(let z = 0; z <= this.ground_res; z++){
             const x_pos = x/this.ground_res*10-5;
             const z_pos = z/this.ground_res*10-5
-            if (x_pos**2 + z_pos**2 + 4 < 25)
-              this.terrain[x][z] = vec3(x_pos, 2.1, z_pos);
-            else
-              this.terrain[x][z] = vec3(x_pos, 2.1, z_pos);
+            let h = Math.sin(x/this.ground_res*Math.PI+Math.PI/2)*Math.sin(z/this.ground_res*Math.PI);
+            if (h < -.1){
+              h -= Math.random()*.1;
+              h *= 7;
+            } else if( h > .1){
+              h += Math.random()*.1;
+            }
+
+            this.terrain[x][z] = vec3(x_pos, h+2.1, z_pos);
           }
         }
+        const row_operation    = (s,p)   => this.terrain[0][Math.round(s*this.ground_res)];
+        const column_operation = (t,p,s) => this.terrain[Math.round(t*this.ground_res)][Math.round(s*this.ground_res)];
+  
+        this.ground = { terrain : new defs.Grid_Patch(this.ground_res, this.ground_res, row_operation, column_operation )};
+
+        // snow walls
+        this.snow_wall = [];
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.snow_wall.push (new Array (2));
+          this.snow_wall[x][0] = vec3(this.terrain[x][0][0],2.1,this.terrain[x][0][2]);
+          this.snow_wall[x][1] = this.terrain[x][0];
+        }
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.snow_wall.push (new Array (2));
+          this.snow_wall[this.ground_res+x][0] = this.terrain[this.ground_res][x];
+          this.snow_wall[this.ground_res+x][1] = this.terrain[this.ground_res][x];
+        }
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.snow_wall.push (new Array (2));
+          this.snow_wall[this.ground_res*2+x][0] = vec3(this.terrain[this.ground_res - x][this.ground_res][0],2.1,this.terrain[this.ground_res - x][this.ground_res][2]);
+          this.snow_wall[this.ground_res*2+x][1] = this.terrain[this.ground_res - x][this.ground_res];
+        }
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.snow_wall.push (new Array (2));
+          this.snow_wall[this.ground_res*3+x][0] = vec3(this.terrain[0][this.ground_res - x][0],2.1,this.terrain[0][this.ground_res - x][2]);
+          this.snow_wall[this.ground_res*3+x][1] = this.terrain[0][this.ground_res - x];
+        }
+        const row_operation_2    = (s,p)   => this.snow_wall[Math.round(s*this.ground_res*4)][0];
+        const column_operation_2 = (t,p,s) => this.snow_wall[Math.round(s*this.ground_res*4)][Math.round(t)];
+  
+        this.wall = { snow : new defs.Grid_Patch(this.ground_res*4, 2, row_operation_2, column_operation_2)};
+
+        // water
+        this.update_water = 0;
+        this.water_res = 32;
+        this.water_v = [];
+        this.water_u = [];
+        this.water_s = [];
+        for (let x = 0; x <= this.water_res; x ++){
+          this.water_v.push (new Array (this.water_res +1));
+          this.water_u.push (new Array (this.water_res +1));
+          this.water_s.push (new Array(this.water_res +1));
+          for(let z = 0; z <= this.water_res; z++){
+            const x_pos = x/this.water_res*10-5;
+            const z_pos = z/this.water_res*10-5
+            this.water_v[x][z] = 0;
+            this.water_u[x][z] = 0;
+            this.water_s[x][z] = vec3(x_pos, 2.1, z_pos);
+          }
+        }
+        this.water_u[this.water_res*3/4][this.water_res/2] = -1;
+        const row_operation_3    = (s,p)   => this.water_s[0][Math.round(s*this.water_res)];
+        const column_operation_3 = (t,p,s) => this.water_s[Math.round(t*this.water_res)][Math.round(s*this.water_res)];
+  
+        this.water = { surface : new defs.Grid_Patch(this.water_res, this.water_res, row_operation_3, column_operation_3)};
+
+        //water wall
+        this.water_wall = [];
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.water_wall.push (new Array (2));
+          this.water_wall[x][0] = this.terrain[this.ground_res][x];
+          this.water_wall[x][1] = this.water_s[this.ground_res][x];
+        }
+        const row_operation_4    = (s,p)   => this.water_wall[Math.round(s*this.ground_res)][0];
+        const column_operation_4 = (t,p,s) => this.water_wall[Math.round(s*this.ground_res)][Math.round(t)];
+  
+        this.wall = { water : new defs.Grid_Patch(this.ground_res, 2, row_operation_4, column_operation_4),
+                      snow : new defs.Grid_Patch(this.ground_res*4, 2, row_operation_2, column_operation_2)};
       }
 
       render_animation( caller )
@@ -153,7 +231,8 @@ const Project_base = defs.Project_base =
 
           // !!! Camera changed here
           // TODO: you can change the camera as needed.
-          Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -10), vec3 (0, 5, 0), vec3 (0, 1, 0)), this.uniforms );
+          //Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -10), vec3 (0, 5, 0), vec3 (0, 1, 0)), this.uniforms );
+          Shader.assign_camera( Mat4.look_at (vec3(8.0, -5.5, 8.0), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
         }
         
         this.uniforms.projection_transform = Mat4.perspective( Math.PI/4, caller.width/caller.height, 1, 100 );
@@ -163,7 +242,7 @@ const Project_base = defs.Project_base =
         const t = this.t = this.uniforms.animation_time/1000;
 
         // todo: assign camera this way would make movement controls useless. Is this intended.
-        Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -15), vec3 (0, 5, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/5,0,1,0)), this.uniforms );
+        //Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -15), vec3 (0, 5, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/5,0,1,0)), this.uniforms );
 
         // const light_position = Mat4.rotation( angle,   1,0,0 ).times( vec4( 0,-1,1,0 ) ); !!!
         // !!! Light changed here
@@ -211,18 +290,20 @@ export class Project extends Project_base
     // function times(), which generates products of matrices.
 
     const blue = color( 0,0,1,1 ), yellow = color( 1,0.7,0,1 ), white = color(1, 1, 1, 0.8),
-          wall_color = color( 0.7, 1.0, 0.8, 1 ),  black = color(0, 0, 0, 1),
-          blackboard_color = color( 0.2, 0.2, 0.2, 1 );
+          wall_color = color( 0.7, 1.0, 0.8, 1 ), 
+          blackboard_color = color( 0.2, 0.2, 0.2, 1 ),
+          test = color( 1,0.7,0,.1 );
 
     const t = this.t = this.uniforms.animation_time/1000;
 
     // !!! Draw ground
-    let floor_transform = Mat4.translation(0, 0.7, 0).times(Mat4.scale(5, 1.5, 5));
+    let floor_transform = Mat4.translation(0, 0.7, 0).times(Mat4.scale(5.01, 1.5, 5.01));
 
 
 
     // Draw Environment
     this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.environment);
+    this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.cloud);
 
     // Draw terrain
     //this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb)
@@ -245,26 +326,109 @@ export class Project extends Project_base
     for (let each_snowflake of this.snowflakes) {
       each_snowflake.advance(0.01);
       this.graph_snowflake(each_snowflake, caller);
+      // Update the terrain if snowflake below certain height.
       if (each_snowflake.pos[1] <= 3){
         const x = each_snowflake.pos[0];
         const z = each_snowflake.pos[2];
-        const x_pos = Math.round((x + 5)/10*this.ground_res);
-        const z_pos= Math.round((z + 5)/10*this.ground_res);
-        if (x**2 + z**2 + 4 < 4.6**2)
-          this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.001,0));
+        let x_pos = Math.round((x + 5)/10*this.ground_res);
+        let z_pos= Math.round((z + 5)/10*this.ground_res);
+        // if (x**2 + z**2 + 4 < 4.6**2)
+        x_pos = Math.min(x_pos, this.ground_res)
+        x_pos = Math.max(x_pos, 0);
+        z_pos = Math.min(z_pos, this.ground_res)
+        z_pos = Math.max(z_pos, 0);
+        this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.01,0));
+
       }
     }
-    const row_operation    = (s,p)   => this.terrain[0][s*this.ground_res];
-    const column_operation = (t,p,s) => this.terrain[t*this.ground_res][s*this.ground_res];
+    // Blur terrain to make it smoother
+    for(let i = 0; i <= this.ground_res; i++) {
+      for(let j = 0; j <= this.ground_res; j++) {
+        if (i ==0 || i == this.ground_res || j == 0 || j == this.ground_res)
+          this.temp_terrain[i][j] = this.terrain[i][j];
+        else {
+          let h_blur = this.terrain[i][j][1]+this.terrain[i+1][j][1]+this.terrain[i-1][j][1]+this.terrain[i][j+1][1]+this.terrain[i][j-1][1];
+          this.temp_terrain[i][j] = vec3(this.terrain[i][j][0], h_blur/5, this.terrain[i][j][2]);
+        }
+      }
+    }
+    for(let i = 0; i <= this.ground_res; i++) {
+      for(let j = 0; j <= this.ground_res; j++) {
+        if (i ==0 || i == this.ground_res || j == 0 || j == this.ground_res)
+          this.temp_terrain_2[i][j] = this.temp_terrain[i][j];
+        else {
+          let h_blur = this.temp_terrain[i][j][1]+this.temp_terrain[i+1][j][1]+this.temp_terrain[i-1][j][1]+this.temp_terrain[i][j+1][1]+this.temp_terrain[i][j-1][1];
+          this.temp_terrain_2[i][j] = vec3(this.temp_terrain[i][j][0], h_blur/5, this.temp_terrain[i][j][2]);
+        }
+      }
+    }
+
+    const row_operation    = (s,p)   => this.temp_terrain_2[0][Math.round(s*this.ground_res)];
+    const column_operation = (t,p,s) => this.temp_terrain_2[Math.round(t*this.ground_res)][Math.round(s*this.ground_res)];
     this.ground.terrain.update_points(caller, row_operation, column_operation);
+
+    // update snow walls
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall[x][1] = this.temp_terrain_2[x][0];
+    }
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall[this.ground_res+x][1] = this.temp_terrain_2[this.ground_res][x];
+    }
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall[this.ground_res*2+x][1] = this.temp_terrain_2[this.ground_res - x][this.ground_res];
+    }
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall[this.ground_res*3+x][1] = this.temp_terrain_2[0][this.ground_res - x];
+    }
+    const row_operation_2    = (s,p)   => this.snow_wall[Math.round(s*this.ground_res*4)][0];
+    const column_operation_2 = (t,p,s) => this.snow_wall[Math.round(s*this.ground_res*4)][Math.round(t)];
+    this.wall.snow.update_points(caller, row_operation_2, column_operation_2);
+
+    //update water
+    if(this.update_water % 3 == 0){
+      for(let i = 1; i < this.water_res; i++){
+        for(let j = 1; j < this.water_res; j++){
+          if (this.water_v[i][j] < this.temp_terrain_2[i][j][1])
+            continue;
+          this.water_v[i][j] += (this.water_u[i-1][j]+this.water_u[i+1][j]+this.water_u[i][j-1]+this.water_u[i][j+1])/4 - this.water_u[i][j];
+        }
+      }
+      for(let i = 1; i < this.water_res; i++){
+        for(let j = 1; j < this.water_res; j++){
+          this.water_v[i][j] *= 0.99;
+          if (this.water_v[i][j] < this.temp_terrain_2[i][j][1])
+            continue;
+
+          this.water_u[i][j] += this.water_v[i][j];
+          this.water_s[i][j] = vec3(this.water_s[i][j][0], this.water_v[i][j]+2.1, this.water_s[i][j][2]);
+        }
+      }
+      const row_operation_3    = (s,p)   => this.water_s[0][Math.round(s*this.water_res)];
+      const column_operation_3 = (t,p,s) => this.water_s[Math.round(t*this.water_res)][Math.round(s*this.water_res)];
+    
+      this.water.surface.update_points(caller, row_operation_3, column_operation_3);
+    }
+    this.update_water ++;
+
     // Draw terrain
     //this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
-    this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
+    
+    //box
+    //this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
+    
+    //snow
     this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow)
+    this.wall.snow.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow);
 
     this.snowflakes = this.snowflakes.filter(s => s.pos[1] >2);
-    this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
-    //this.shapes.cube.draw(caller, )
+    this.water.surface.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
+    this.wall.water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
+    
+    // glass
+    this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
+
+    
+
   }
 
   // Hardcoded value for testing purpose. Use parsed commands later.
@@ -305,13 +469,7 @@ export class Project extends Project_base
   clear_terrain() {
     super.init_terrain();
   }
-
-  wind_blow_left() {
-    for (let each of this.snowflakes) {
-      each.velocity = vec3(each.velocity[0] - 0.5, each.velocity[1], each.velocity[2]);
-    }
-  }
-
+  
   render_controls()
   {                                 
     // render_controls(): Sets up a panel of interactive HTML elements, including
@@ -321,12 +479,7 @@ export class Project extends Project_base
     // TODO: You can add your button events for debugging. (optional)
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
-    this.key_triggered_button( "Wind Blow Left", [ "Shift", "a" ], this.wind_blow_left );
-    this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
-
-
-
   }
 }
 

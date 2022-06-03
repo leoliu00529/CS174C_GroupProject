@@ -258,9 +258,11 @@ const Grid_Patch = defs.Grid_Patch =
                   // Take cross-products of pairs of neighbors, proceeding in consistent rotational direction through
                   // the pairs:
                   for (let i = 0; i < 4; i++)
-                      if (neighbors[ i ] && neighbors[ (i + 1) % 4 ])
+                      if (neighbors[ i ] && neighbors[ (i + 1) % 4 ]) {
                           normal =
                             normal.plus (neighbors[ i ].minus (curr).cross (neighbors[ (i + 1) % 4 ].minus (curr)));
+                      }
+
                   normal.normalize ();           // Normalize the sum to get the average vector.
                   // Store the normal if it's valid (not NaN or zero length), otherwise use a default:
                   if (normal.every (x => x == x) && normal.norm () > .01) this.arrays.normal.push (normal.copy ());

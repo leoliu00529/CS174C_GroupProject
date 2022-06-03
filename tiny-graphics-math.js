@@ -49,7 +49,7 @@ const Vector3 = math.Vector3 =
       // In-fix operations
       equals (b) { return this[ 0 ] === b[ 0 ] && this[ 1 ] === b[ 1 ] && this[ 2 ] === b[ 2 ]; }
       plus (b) { return vec3 (this[ 0 ] + b[ 0 ], this[ 1 ] + b[ 1 ], this[ 2 ] + b[ 2 ]); }
-      minus (b) { return vec3 (this[ 0 ] - b[ 0 ], this[ 1 ] - b[ 1 ], this[ 2 ] - b[ 2 ]); }
+      minus (b) {return vec3 (this[ 0 ] - b[ 0 ], this[ 1 ] - b[ 1 ], this[ 2 ] - b[ 2 ]); }
       times (s) { return vec3 (this[ 0 ] * s, this[ 1 ] * s, this[ 2 ] * s); }
       times_pairwise (b) { return vec3 (this[ 0 ] * b[ 0 ], this[ 1 ] * b[ 1 ], this[ 2 ] * b[ 2 ]); }
       // Pre-fix operations
