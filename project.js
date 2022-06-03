@@ -30,6 +30,15 @@ class Snowflake {
     this.velocity = vec3(Math.random()*0.1, -3*(2+Math.random()*0.4), Math.random()*0.3);
   }
   advance(timestep) {
+    // Naive collision detection with wall
+    if (Math.abs(this.pos[0]) >= 5) {
+      this.pos = vec3(-1 * this.pos[0], this.pos[1], this.pos[2]);
+    }
+
+    if (Math.abs(this.pos[2]) >= 5) {
+      this.pos = vec3(this.pos[0], this.pos[1], -1 * this.pos[2]);
+    }
+
     this.pos = this.pos.plus(this.velocity.times(timestep));
     this.angle += this.angular_velocity*timestep;
   }
@@ -451,12 +460,13 @@ export class Project extends Project_base
     this.snowflakes = this.snowflakes.filter(s => s.pos[1] >2);
     this.water.surface.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
     this.wall.water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
-    this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
+    // this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
 
     // glass
     this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
 
-    
+
+
 
   }
 
@@ -498,7 +508,8 @@ export class Project extends Project_base
   clear_terrain() {
     super.init_terrain();
   }
-  
+
+
   render_controls()
   {                                 
     // render_controls(): Sets up a panel of interactive HTML elements, including
@@ -509,9 +520,6 @@ export class Project extends Project_base
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
-    this.new_line();
-    this.key_triggered_button( "Wind Blow Left", [ "Shift", "a" ], this.wind_blow_left );
-    this.new_line();
   }
 }
 
