@@ -258,8 +258,8 @@ const Project_base = defs.Project_base =
 
           // !!! Camera changed here
           // TODO: you can change the camera as needed.
-          Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -10), vec3 (0, 5, 0), vec3 (0, 1, 0)), this.uniforms );
-          //Shader.assign_camera( Mat4.look_at (vec3(8.0, -5.5, 8.0), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
+          // Shader.assign_camera( Mat4.look_at (vec3 (0, 5, -10), vec3 (0, 5, 0), vec3 (0, 1, 0)), this.uniforms );
+          // Shader.assign_camera( Mat4.look_at (vec3(8.0, -5.5, 8.0), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
         }
         
         this.uniforms.projection_transform = Mat4.perspective( Math.PI/4, caller.width/caller.height, 1, 100 );
@@ -289,6 +289,7 @@ export class Project extends Project_base
   // experimenting with matrix transformations.
 
   snowflakes = [];
+  spin = false;
   has_init = false;
   render_animation( caller )
   {                                                // display():  Called once per frame of animation.  For each shape that you want to
@@ -487,6 +488,9 @@ export class Project extends Project_base
 
     // // glass
     this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
+
+    this.spin_snowflake();
+
   }
 
   // Hardcoded value for testing purpose. Use parsed commands later.
@@ -524,8 +528,32 @@ export class Project extends Project_base
             {...this.materials.snowflake, color: color(.4, .4, .4, 1.0)});
   }
 
+  spin_snowflake() {
+    if (this.spin) {
+      for (let each of this.snowflakes) {
+        let x = each.pos[0];
+        let z = each.pos[2];
+        let dist_squared = x ** 2 + z ** 2;
+        const factor = 30 * (dist_squared/72);
+
+        // Only spin the snowflakes that would not collide with the boundary.
+        if (Math.sqrt(dist_squared) < 6) {
+          if (x < 0) {
+            each.velocity = vec3(z * factor / x, each.velocity[1], -1 * factor);
+          } else {
+            each.velocity = vec3(-1 * z * factor / x, each.velocity[1], factor);
+          }
+        }
+      }
+    }
+  }
+
   clear_terrain() {
     super.init_terrain();
+  }
+
+  toggle_spin() {
+    this.spin = !this.spin;
   }
 
   toggle_wind() {
@@ -543,6 +571,8 @@ export class Project extends Project_base
     this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
     this.key_triggered_button( "Toggle flag wind", [ "Shift", "T" ], this.toggle_wind );
+    this.new_line();
+    this.key_triggered_button( "Toggle Spin", [ "Shift", "C" ], this.toggle_spin );
   }
 
 
