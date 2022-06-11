@@ -5,28 +5,28 @@
 
 The goal of our group project is to render a snow globe, similar to the ones found in a souvenir shop. The basis of our snow globe scene is a glass box that contains snowy terrain, a body of water, a cloud, and a flag. These are the things rendered at the very beginning of our animation. In addition, a penguin will periodically spawn, which will then slide down the slope generating a splash in the water. Our project was heavily inspired by the many short films shown in the beginning of lectures, where we sought to strike a balance between realism (accurate physics, reflections, environment mapping, etc) and fantasy (animated characters, exaggerated motion, whimsical setting, etc) similar to works like Pixar’s Toy Story.
 
-<p align="center" width="200%">
+<p align="center" width="100px">
     <img width="33%" src="imgs/1.png">
 </p>
 
 Snowflakes are generated once the animation begins. Three snowflakes are spawned every frame, each with a randomized initial velocity. 
 
 
-<p align="center" width="200%">
+<p align="center" width="100px">
     <img width="33%" src="imgs/2.png">
 </p>
 
 The height of the terrain increases over time, reflecting the effect of snowflakes accumulating on the ground. The terrain could be reset to its initial status by the clear terrain button.
 
 
-<p align="center" width="200%">
+<p align="center" width="100px">
     <img width="33%" src="imgs/3.png">
 </p>
 
 Every once in a while, a penguin will dash into the water body from the top of the snowy terrain. Observe that the penguin both interacts with the snow on the ground, leaving a trail behind its route, but also with the water causing a splash on the surface of the water.
 
 
-<p align="center" width="200%">
+<p align="center" width="100px">
     <img width="33%" src="imgs/4.png">
 </p>
 
@@ -77,7 +77,7 @@ While less related to 174C and more to 174A, we also include some fun shaders as
 - **Collision Detection**: https://learnopengl.com/In-Practice/2D-Game/Collisions/Collision-detection
 
 - **Cloth Simulation**: 
-- https://github.com/ndrwhr/cloth-simulation/blob/master/source/cloth.js
-- https://codepen.io/thomcc/pen/NGQpxv
+    - https://github.com/ndrwhr/cloth-simulation/blob/master/source/cloth.js
+    - https://codepen.io/thomcc/pen/NGQpxv
 
 
