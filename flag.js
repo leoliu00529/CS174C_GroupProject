@@ -104,7 +104,7 @@ const Flag =
       this.ks = 1000;
       this.kd = 10;
       this.particle_mass = 0.03;
-      this.wind = true;
+      this.wind = false;
 
       this.h = x_seg;
       this.w = y_seg;
@@ -136,10 +136,10 @@ const Flag =
         this.particles[i].vel = vec3(0, 0, 0);
       }
 
-      for (let i = 0; i < this.springs.length; i++) {
-        this.particles[i].acc = vec3(0, 0, 0);
-        this.particles[i].vel = vec3(0, 0, 0);
-      }
+      // for (let i = 0; i < this.springs.length; i++) {
+      //   this.particles[i].acc = vec3(0, 0, 0);
+      //   this.particles[i].vel = vec3(0, 0, 0);
+      // }
     }
 
     create_particles (w, h) {

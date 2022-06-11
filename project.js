@@ -29,17 +29,19 @@ class Snowflake {
 
     this.angle = Math.random() * Math.PI * 2;
     this.angular_velocity = Math.random()*15+10;
-    this.velocity = vec3(Math.random()*0.1-0.05, -3*(2+Math.random()*0.4), Math.random()*0.1-0.05);
+    this.velocity = vec3(Math.random()*0.1-0.05, -6*(4+Math.random()*0.9), Math.random()*0.1-0.05);
     this.velocity = this.velocity .plus(wind);
   }
   advance(timestep) {
     // Naive collision detection with wall
-    if (Math.abs(this.pos[0]) >= 5) {
-      this.pos = vec3(-1 * this.pos[0], this.pos[1], this.pos[2]);
+    if (Math.abs(this.pos[0]) >= 4.96) {
+      this.pos = vec3(Math.sign(this.pos[0]) * 4.96, this.pos[1], this.pos[2]);
+      this.velocity = vec3(0,this.velocity[1], 0);
     }
 
-    if (Math.abs(this.pos[2]) >= 5) {
-      this.pos = vec3(this.pos[0], this.pos[1], -1 * this.pos[2]);
+    if (Math.abs(this.pos[2]) >= 4.96) {
+      this.pos = vec3(this.pos[0], this.pos[1], Math.sign(this.pos[2])*4.96);
+      this.velocity = vec3(0, this.velocity[1], 0);
     }
 
     this.pos = this.pos.plus(this.velocity.times(timestep));
@@ -110,7 +112,7 @@ const Project_base = defs.Project_base =
         this.draw_cloud = true;
 
         this.wind_dir = Mat4.rotation(Math.PI/4, 0 ,1, 0);
-        this.wind_strength = 2;
+        this.wind_strength = 0;
 
         const skybox_files = [
           // 'assets/skybox/front.jpg',
@@ -396,23 +398,25 @@ export class Project extends Project_base
     for (let index = this.snowflakes.length - 1; index >= 0; index--) {
       let each_snowflake = this.snowflakes[index];
       each_snowflake.advance(0.005);
-      if (Math.abs(each_snowflake.pos[0]) >= 5 || Math.abs(each_snowflake.pos[2]) >= 5) {
-        this.snowflakes.splice(index, 1);
-        continue;
-      }
+      // if (Math.abs(each_snowflake.pos[0]) >= 5.1 || Math.abs(each_snowflake.pos[2]) >= 5.1) {
+      //   this.snowflakes.splice(index, 1);
+      //   continue;
+      // }
       this.graph_snowflake(each_snowflake, caller);
       // Update the terrain if snowflake below certain height.
-      if (each_snowflake.pos[1] <= 3){
-        const x = each_snowflake.pos[0];
-        const z = each_snowflake.pos[2];
-        let x_pos = Math.round((x + 5)/10*this.ground_res);
-        let z_pos= Math.round((z + 5)/10*this.ground_res);
-        // if (x**2 + z**2 + 4 < 4.6**2)
-        x_pos = Math.min(x_pos, this.ground_res)
-        x_pos = Math.max(x_pos, 0);
-        z_pos = Math.min(z_pos, this.ground_res)
-        z_pos = Math.max(z_pos, 0);
-        this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.02,0));
+      const x = each_snowflake.pos[0];
+      const z = each_snowflake.pos[2];
+      let x_pos = Math.round((x + 5)/10*this.ground_res);
+      let z_pos= Math.round((z + 5)/10*this.ground_res);
+      // if (x**2 + z**2 + 4 < 4.6**2)
+      x_pos = Math.min(x_pos, this.ground_res)
+      x_pos = Math.max(x_pos, 0);
+      z_pos = Math.min(z_pos, this.ground_res)
+      z_pos = Math.max(z_pos, 0);
+      if (each_snowflake.pos[1] <= this.terrain[x_pos][z_pos][1]){
+        
+        this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.2,0));
+        this.snowflakes.splice(index, 1);
 
       }
     }
@@ -685,7 +689,7 @@ export class Project extends Project_base
         let x = each.pos[0];
         let z = each.pos[2];
         let dist_squared = x ** 2 + z ** 2;
-        const factor = 10;
+        const factor = 40;
 
         // Only spin the snowflakes that would not collide with the boundary.
         if (Math.sqrt(dist_squared) < 6) {
@@ -710,7 +714,7 @@ export class Project extends Project_base
   toggle_wind() {
     this.flag.toggle_wind();
     if(this.wind_strength == 0)
-      this.wind_strenth = 2;
+      this.wind_strength = 10;
     else  
       this.wind_strength = 0;
   }
