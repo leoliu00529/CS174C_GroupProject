@@ -9,7 +9,7 @@ import { Flag } from './flag.js';
 
 // Placeholder class for snowflakes
 class Snowflake {
-  constructor() {
+  constructor(wind) {
     //const r = 5 * Math.sqrt(Math.random());
     //const theta = Math.random() * Math.PI * 2;
 
@@ -29,7 +29,8 @@ class Snowflake {
 
     this.angle = Math.random() * Math.PI * 2;
     this.angular_velocity = Math.random()*15+10;
-    this.velocity = vec3(Math.random()*0.1, -3*(2+Math.random()*0.4), Math.random()*0.3);
+    this.velocity = vec3(Math.random()*0.1-0.05, -3*(2+Math.random()*0.4), Math.random()*0.1-0.05);
+    this.velocity = this.velocity .plus(wind);
   }
   advance(timestep) {
     // Naive collision detection with wall
@@ -88,6 +89,7 @@ const Project_base = defs.Project_base =
         const cube_map = new defs.Cube_Map();
         const snow_shader = new defs.Snow_Shader();
         const cloud = new defs.Clouds();
+        const water = new defs.Water();
         this.materials = {};
         this.materials.plastic = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( .9,.5,.9,1 ) }
         this.materials.metal   = { shader: phong, ambient: 1, diffusivity: 1, specularity:  1, color: color( .9,.5,.9,0.21 ) }
@@ -96,11 +98,19 @@ const Project_base = defs.Project_base =
         this.materials.snowflake = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/snowflake2.png" ) }
         //this.materials.snow = { shader: snow_shader, ambient: .5, texture: new Texture("assets/rgb.jpg")}
         this.materials.snow = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( 1,1,1,1 ) }
-        this.materials.water = {shader: phong, ambient: .2, diffusivity: 1, specularity: .1, color: color(0, 0, 1, .95)};
+        this.materials.water = {shader: phong, ambient: .2, diffusivity: 1, specularity: .1, color: color(18/256, 137/256, 167/256, .95)};
         this.materials.cloud = {shader: cloud};
 
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
+        
+        this.animate = true;
+        this.animation_t = 0;
+        this.splash = true;
+        this.draw_cloud = true;
+
+        this.wind_dir = Mat4.rotation(Math.PI/4, 0 ,1, 0);
+        this.wind_strength = 2;
 
         const skybox_files = [
           // 'assets/skybox/front.jpg',
@@ -126,12 +136,13 @@ const Project_base = defs.Project_base =
         ];
         const cube_texture = new Cube_Texture(skybox_files);
         this.materials.reflective = { shader: reflective, ambient: .5, texture: cube_texture};// new Texture( "assets/rgb.jpg" ) }
+        //this.materials.water = { shader: water, ambient: .5, texture: cube_texture};
         this.materials.environment = {shader: cube_map, texture: cube_texture};
         
         
         // snow
         
-        this.ground_res = 32;
+        this.ground_res = 48;
         this.init_terrain();
         
         const row_operation    = (s,p)   => this.terrain[0][Math.round(s*this.ground_res)];
@@ -140,35 +151,42 @@ const Project_base = defs.Project_base =
         this.ground = { terrain : new defs.Grid_Patch(this.ground_res, this.ground_res, row_operation, column_operation )};
 
         // snow walls
-        this.snow_wall = [];
+        this.snow_wall_l = [];
+        this.snow_wall_r = [];
+        this.snow_wall_b = [];
         for (let x = 0; x <= this.ground_res; x ++){
-          this.snow_wall.push (new Array (2));
-          this.snow_wall[x][0] = vec3(this.terrain[x][0][0],2.1,this.terrain[x][0][2]);
-          this.snow_wall[x][1] = this.terrain[x][0];
+          this.snow_wall_r.push (new Array (2));
+          this.snow_wall_r[x][1] = vec3(this.terrain[x][0][0],-2,this.terrain[x][0][2]);
+          this.snow_wall_r[x][0] = this.terrain[x][0];
+        }
+
+
+        for (let x = 0; x <= this.ground_res; x ++){
+          this.snow_wall_b.push (new Array (2));
+          this.snow_wall_b[x][1] = vec3(this.terrain[0][this.ground_res - x][0],-2,this.terrain[0][this.ground_res - x][2]);
+          this.snow_wall_b[x][0] = this.terrain[0][this.ground_res - x];
         }
         for (let x = 0; x <= this.ground_res; x ++){
-          this.snow_wall.push (new Array (2));
-          this.snow_wall[this.ground_res+x][0] = this.terrain[this.ground_res][x];
-          this.snow_wall[this.ground_res+x][1] = this.terrain[this.ground_res][x];
+          this.snow_wall_l.push (new Array (2));
+          this.snow_wall_l[x][1] = vec3(this.terrain[this.ground_res - x][this.ground_res][0],-2,this.terrain[this.ground_res - x][this.ground_res][2]);
+          this.snow_wall_l[x][0] = this.terrain[this.ground_res - x][this.ground_res];
         }
-        for (let x = 0; x <= this.ground_res; x ++){
-          this.snow_wall.push (new Array (2));
-          this.snow_wall[this.ground_res*2+x][0] = vec3(this.terrain[this.ground_res - x][this.ground_res][0],2.1,this.terrain[this.ground_res - x][this.ground_res][2]);
-          this.snow_wall[this.ground_res*2+x][1] = this.terrain[this.ground_res - x][this.ground_res];
-        }
-        for (let x = 0; x <= this.ground_res; x ++){
-          this.snow_wall.push (new Array (2));
-          this.snow_wall[this.ground_res*3+x][0] = vec3(this.terrain[0][this.ground_res - x][0],2.1,this.terrain[0][this.ground_res - x][2]);
-          this.snow_wall[this.ground_res*3+x][1] = this.terrain[0][this.ground_res - x];
-        }
-        const row_operation_2    = (s,p)   => this.snow_wall[Math.round(s*this.ground_res*4)][0];
-        const column_operation_2 = (t,p,s) => this.snow_wall[Math.round(s*this.ground_res*4)][Math.round(t)];
+        const row_operation_r    = (s,p)   => this.snow_wall_r[Math.round(s*this.ground_res)][0];
+        const column_operation_r = (t,p,s) => this.snow_wall_r[Math.round(s*this.ground_res)][Math.round(t)];
+
+        const row_operation_b    = (s,p)   => this.snow_wall_b[Math.round(s*this.ground_res)][0];
+        const column_operation_b = (t,p,s) => this.snow_wall_b[Math.round(s*this.ground_res)][Math.round(t)];
+
+        const row_operation_l    = (s,p)   => this.snow_wall_l[Math.round(s*this.ground_res)][0];
+        const column_operation_l = (t,p,s) => this.snow_wall_l[Math.round(s*this.ground_res)][Math.round(t)];
   
-        this.wall = { snow : new defs.Grid_Patch(this.ground_res*4, 2, row_operation_2, column_operation_2)};
+        this.wall_snow_r = new defs.Grid_Patch(this.ground_res*4, 2, row_operation_r, column_operation_r);
+        this.wall_snow_b = new defs.Grid_Patch(this.ground_res*4, 2, row_operation_b, column_operation_b);
+        this.wall_snow_l = new defs.Grid_Patch(this.ground_res*4, 2, row_operation_l, column_operation_l);
 
         // water
         this.update_water = 0;
-        this.water_res = 32;
+        this.water_res = this.ground_res;
         this.water_v = [];
         this.water_u = [];
         this.water_s = [];
@@ -184,11 +202,13 @@ const Project_base = defs.Project_base =
             this.water_s[x][z] = vec3(x_pos, 2.1, z_pos);
           }
         }
-        this.water_u[this.water_res*3/4][this.water_res/2] = -1;
+        //this.water_u[this.water_res*3/4][this.water_res/2] = -1;
         const row_operation_3    = (s,p)   => this.water_s[0][Math.round(s*this.water_res)];
         const column_operation_3 = (t,p,s) => this.water_s[Math.round(t*this.water_res)][Math.round(s*this.water_res)];
   
         this.water = { surface : new defs.Grid_Patch(this.water_res, this.water_res, row_operation_3, column_operation_3)};
+
+       
 
         //water wall
         this.water_wall = [];
@@ -200,18 +220,23 @@ const Project_base = defs.Project_base =
         const row_operation_4    = (s,p)   => this.water_wall[Math.round(s*this.ground_res)][0];
         const column_operation_4 = (t,p,s) => this.water_wall[Math.round(s*this.ground_res)][Math.round(t)];
   
-        this.wall = { water : new defs.Grid_Patch(this.ground_res, 2, row_operation_4, column_operation_4),
-                      snow : new defs.Grid_Patch(this.ground_res*4, 2, row_operation_2, column_operation_2)};
+        this.wall_water = new defs.Grid_Patch(this.ground_res, 2, row_operation_4, column_operation_4);
         
         // flag
         this.x_seg = 10;
         this.y_seg = 10;
         this.rest_dist = 0.1;
         this.flag = new Flag(this.x_seg, this.y_seg, this.rest_dist);
+        
+
         console.log(this.flag);
         this.time_step = 0.001;
         this.t_simulated = 0.0;
         this.simulation_speed = 1.0;
+
+        this.path = (x) => Math.sin(x/this.ground_res*Math.PI+Math.PI/2);
+        this.slope = (x) =>Math.PI/this.ground_res*Math.cos(x/this.ground_res*Math.PI+Math.PI/2)
+
       }
 
       init_terrain () {
@@ -226,9 +251,10 @@ const Project_base = defs.Project_base =
             const x_pos = x/this.ground_res*10-5;
             const z_pos = z/this.ground_res*10-5
             let h = Math.sin(x/this.ground_res*Math.PI+Math.PI/2)*Math.sin(z/this.ground_res*Math.PI);
-            if (h < -.1){
+            if (x_pos > 0){
+              h = Math.sin(x/this.ground_res*Math.PI+Math.PI/2);
               h -= Math.random()*.1;
-              h *= 7;
+              h *= 3;
             } else if( h > .1){
               h += Math.random()*.1;
             }
@@ -269,7 +295,7 @@ const Project_base = defs.Project_base =
         const t = this.t = this.uniforms.animation_time/1000;
 
         // todo: assign camera this way would make movement controls useless. Is this intended.
-        Shader.assign_camera( Mat4.look_at (vec3 (0, 7, -18), vec3 (0, 6, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/4,0,1,0)), this.uniforms );
+        Shader.assign_camera( Mat4.look_at (vec3 (0, 7, -18), vec3 (0, 6, 0), vec3 (0, 1, 0)).times(Mat4.rotation(t/3,0,1,0)), this.uniforms );
 
         // const light_position = Mat4.rotation( angle,   1,0,0 ).times( vec4( 0,-1,1,0 ) ); !!!
         // !!! Light changed here
@@ -326,7 +352,8 @@ export class Project extends Project_base
 
     // Draw Environment
     this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.environment);
-    this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.cloud);
+    if (this.draw_cloud)
+      this.shapes.square.draw(caller, this.uniforms, Mat4.identity(), this.materials.cloud);
 
     // Draw terrain
     //this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb)
@@ -342,7 +369,7 @@ export class Project extends Project_base
     //   this.has_init = true;
     // }
     for (let i = 0; i < 3; i += 1) {
-      this.snowflakes.push(new Snowflake());
+      this.snowflakes.push(new Snowflake(this.wind_dir.times(vec3(this.wind_strength, 0, 0))));
     }
 
     // Advance snowflake logic and graph all snowflakes.
@@ -360,10 +387,39 @@ export class Project extends Project_base
         x_pos = Math.max(x_pos, 0);
         z_pos = Math.min(z_pos, this.ground_res)
         z_pos = Math.max(z_pos, 0);
-        this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.01,0));
+        this.terrain[x_pos][z_pos] = this.terrain[x_pos][z_pos].plus(vec3(0,.02,0));
 
       }
     }
+
+    if(this.animation_t > 20)
+      this.animate = true;
+    // Draw Penguin
+    if (this.animate){
+      this.animate = false;
+      this.animation_t = 1.5;
+      this.splash = true;
+    }
+    this.animation_t += .07;
+
+    if (this.animation_t < 6) {
+      let p_h = this.path(this.animation_t**2);
+      let p_x = this.animation_t**2/this.ground_res*10-5;
+      //let s = this.slope(t*3);
+      let angle = Math.acos(this.animation_t**2/70);
+      //let angle = Math.acos(1/Math.sqrt(s**2+1));
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.scale(.6, .4, .4)), { ...this.materials.plastic, color:color(0, 0, 0, 1)});
+
+      for(let z = this.ground_res/2-3; z <= this.ground_res/2+3; z++){
+        const x_c = Math.round((p_x + 5)/10*this.ground_res);
+        const z_pos = z/this.ground_res*10-5;
+        if (p_h >= 0)
+          this.terrain[x_c][z] = vec3(p_x, p_h+2+0.03*(z-this.ground_res/2)**2, z_pos);
+      }
+    }
+
+
+
     // Blur terrain to make it smoother
     for(let i = 0; i <= this.ground_res; i++) {
       for(let j = 0; j <= this.ground_res; j++) {
@@ -405,6 +461,7 @@ export class Project extends Project_base
     this.ground.terrain.update_points(caller, row_operation, column_operation);
 
     // update snow walls
+    /*
     for (let x = 0; x <= this.ground_res; x ++){
       this.snow_wall[x][1] = this.temp_terrain_2[x][0];
     }
@@ -416,31 +473,77 @@ export class Project extends Project_base
     }
     for (let x = 0; x <= this.ground_res; x ++){
       this.snow_wall[this.ground_res*3+x][1] = this.temp_terrain_2[0][this.ground_res - x];
-    }
+    }    
     const row_operation_2    = (s,p)   => this.snow_wall[Math.round(s*this.ground_res*4)][0];
     const column_operation_2 = (t,p,s) => this.snow_wall[Math.round(s*this.ground_res*4)][Math.round(t)];
     this.wall.snow.update_points(caller, row_operation_2, column_operation_2);
+*/
+
+
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall_r[x][0] = this.temp_terrain_2[x][0];
+    }
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall_b[x][0] = this.temp_terrain_2[0][this.ground_res - x];
+    }
+    for (let x = 0; x <= this.ground_res; x ++){
+      this.snow_wall_l[x][0] = this.temp_terrain_2[this.ground_res - x][this.ground_res];
+    }
+    const row_operation_r    = (s,p)   => this.snow_wall_r[Math.round(s*this.ground_res)][0];
+    const column_operation_r = (t,p,s) => this.snow_wall_r[Math.round(s*this.ground_res)][Math.round(t)];
+
+    const row_operation_b    = (s,p)   => this.snow_wall_b[Math.round(s*this.ground_res)][0];
+    const column_operation_b = (t,p,s) => this.snow_wall_b[Math.round(s*this.ground_res)][Math.round(t)];
+
+    const row_operation_l    = (s,p)   => this.snow_wall_l[Math.round(s*this.ground_res)][0];
+    const column_operation_l = (t,p,s) => this.snow_wall_l[Math.round(s*this.ground_res)][Math.round(t)];
+    this.wall_snow_r.update_points(caller, row_operation_r, column_operation_r);
+    this.wall_snow_b.update_points(caller, row_operation_b, column_operation_b);
+    this.wall_snow_l.update_points(caller, row_operation_l, column_operation_l);
+    
 
     //update water
-    if(this.update_water % 300 == 0){
-     this.water_u[this.water_res*3/4+1][this.water_res/2] = -1;
+    if(this.animation_t > 5.1 && this.splash){
+    
+     this.water_u[this.water_res*3/4-5][this.water_res/2] = -.8;
+     this.splash = false;
     //  this.water_u[this.water_res*3/4][this.water_res/2] = -1;
     //  this.water_u[this.water_res*3/4-1][this.water_res/2] = -1;
     }
 
     if(this.update_water % 2 == 0){
-      for(let i = 1; i < this.water_res; i++){
-        for(let j = 1; j < this.water_res; j++){
-          if (this.water_v[i][j] < this.temp_terrain_2[i][j][1])
-            continue;
-          this.water_v[i][j] += (this.water_u[i-1][j]+this.water_u[i+1][j]+this.water_u[i][j-1]+this.water_u[i][j+1])/4 - this.water_u[i][j];
-          //this.water_v[i][j] = Math.min(this.water_v[i][j], 1)
+      for(let i = 0; i <= this.water_res; i++){
+        for(let j = 0; j <= this.water_res; j++){
+          //if (this.water_v[i][j]+2.1 < this.temp_terrain_2[i][j][1])
+          //  continue;
+          
+          let temp = 0
+          if (i > 0)
+           if (this.water_v[i-1][j]+2.1 >= this.temp_terrain_2[i-1][j][1])
+              temp += this.water_u[i-1][j];
+
+          if (i < this.water_res)
+            if (this.water_v[i+1][j]+2.1 >= this.temp_terrain_2[i+1][j][1])
+             temp += this.water_u[i+1][j];
+          
+          if (j > 0)
+            if (this.water_v[i][j-1]+2.1 >= this.temp_terrain_2[i][j-1][1])
+             temp += this.water_u[i][j-1];
+
+          if (j < this.water_res)
+           if (this.water_v[i][j+1]+2.1 >= this.temp_terrain_2[i][j+1][1])
+            temp += this.water_u[i][j+1];
+          
+          this.water_v[i][j] += temp/4 - this.water_u[i][j];
+
+          //this.water_v[i][j] += (this.water_u[i-1][j]+this.water_u[i+1][j]+this.water_u[i][j-1]+this.water_u[i][j+1])/4 - this.water_u[i][j];
+            //this.water_v[i][j] = Math.min(this.water_v[i][j], 1)
         }
       }
-      for(let i = 1; i < this.water_res; i++){
-        for(let j = 1; j < this.water_res; j++){
+      for(let i = 0; i <= this.water_res; i++){
+        for(let j = 0; j <= this.water_res; j++){
           this.water_v[i][j] *= 0.98;
-          if (this.water_v[i][j] < this.temp_terrain_2[i][j][1])
+          if (this.water_v[i][j]+2.1 < this.temp_terrain_2[i][j][1])
             continue;
 
           this.water_u[i][j] += this.water_v[i][j];
@@ -458,19 +561,26 @@ export class Project extends Project_base
     // this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(0,5,0).times(Mat4.scale(5,5,5)), this.materials.reflective);
     
     //box
-    this.shapes.square.draw( caller, this.uniforms,  Mat4.translation(0, 0.61, -5.02).times(Mat4.scale(5.02, 1.5, 5.02)), { ...this.materials.plastic, color: blackboard_color} );
-    this.shapes.square.draw( caller, this.uniforms,  Mat4.translation(0, 0.61, 5.02).times(Mat4.scale(5.02, 1.5, 5.02)), { ...this.materials.plastic, color: blackboard_color} );
-    this.shapes.square.draw( caller, this.uniforms,  Mat4.rotation(Math.PI/2,0,1,0).times(Mat4.translation(0, 0.61, 5.02).times(Mat4.scale(5.02, 1.5, 5.02))), { ...this.materials.plastic, color: blackboard_color} );
-    this.shapes.square.draw( caller, this.uniforms,  Mat4.rotation(-Math.PI/2,0,1,0).times(Mat4.translation(0, 0.61, 5.02).times(Mat4.scale(5.02, 1.5, 5.02))), { ...this.materials.plastic, color: blackboard_color} );
+     //this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5,0), { ...this.materials.plastic, color: blackboard_color});
+    this.shapes.cube.draw( caller, this.uniforms,  Mat4.translation(0, 0.85, -5.52).times(Mat4.scale(5.02,1.4,0.5)), { ...this.materials.plastic, color: blackboard_color} );
+    this.shapes.cube.draw( caller, this.uniforms,  Mat4.translation(0, 0.85, 5.52).times(Mat4.scale(5.02, 1.4, 0.5)), { ...this.materials.plastic, color: blackboard_color} );
+    this.shapes.cube.draw( caller, this.uniforms,  Mat4.rotation(Math.PI/2,0,1,0).times(Mat4.translation(0, 0.85, 5.52).times(Mat4.scale(6.02, 1.4, .5))), { ...this.materials.plastic, color: blackboard_color} );
+    this.shapes.cube.draw( caller, this.uniforms,  Mat4.rotation(-Math.PI/2,0,1,0).times(Mat4.translation(0, 0.85, 5.52).times(Mat4.scale(6.02, 1.4, .5))), { ...this.materials.plastic, color: blackboard_color} );
+
     
     //snow
     this.ground.terrain.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow)
-    this.wall.snow.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow);
+    this.wall_snow_r.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow);
+    this.wall_snow_b.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow);
+    this.wall_snow_l.draw(caller, this.uniforms, Mat4.identity(), this.materials.snow);
 
     this.snowflakes = this.snowflakes.filter(s => s.pos[1] >2);
     this.water.surface.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
-    this.wall.water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
-    // this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
+    //this.wall_water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
+    
+    this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
+
+    //this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.snow);
 
 
     // flag
@@ -485,6 +595,10 @@ export class Project extends Project_base
   
   
     this.flag.draw(caller, this.uniforms, this.shapes, this.materials);  
+
+
+
+
 
     // // glass
     this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5.1,0).times(Mat4.scale(5.01,6,5.01)), this.materials.reflective);
@@ -558,6 +672,18 @@ export class Project extends Project_base
 
   toggle_wind() {
     this.flag.toggle_wind();
+    if(this.wind_strength == 0)
+      this.wind_strenth = 2;
+    else  
+      this.wind_strength = 0;
+  }
+  rotate_wind() {
+    this.wind_dir = this.wind_dir.times(Mat4.rotation(Math.PI/8, 0, 1, 0));
+    this.flag.update_wind_dir(this.wind_dir);
+  }
+
+  toggle_cloud() {
+    this.draw_cloud = !this.draw_cloud;
   }
 
   render_controls()
@@ -570,9 +696,15 @@ export class Project extends Project_base
     this.key_triggered_button( "Debug", [ "Shift", "D" ], null );
     this.new_line();
     this.key_triggered_button( "Clear Terrain", [ "Shift", "C" ], this.clear_terrain );
-    this.key_triggered_button( "Toggle flag wind", [ "Shift", "T" ], this.toggle_wind );
     this.new_line();
-    this.key_triggered_button( "Toggle Spin", [ "Shift", "C" ], this.toggle_spin );
+    this.key_triggered_button( "Toggle Spin", [ "Shift", "S" ], this.toggle_spin );
+    this.new_line();
+    this.key_triggered_button( "Toggle Wind", [ "Shift", "W" ], this.toggle_wind );
+    this.new_line();
+    this.key_triggered_button( "Rotate Wind", [ "Shift", "R" ], this.rotate_wind );
+
+    this.new_line();
+    this.key_triggered_button( "Toggle Cloud", [ "Shift", "T" ], this.toggle_cloud );
   }
 
 

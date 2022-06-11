@@ -104,10 +104,19 @@ const Flag =
       this.ks = 1000;
       this.kd = 10;
       this.particle_mass = 0.03;
-      this.wind = false;
+      this.wind = true;
+
+      this.h = x_seg;
+      this.w = y_seg;
+
+      this.wind_dir = Mat4.rotation(Math.PI/4, 0,1,0);
+      // this.surface = [];
 
       this.create_particles(x_seg, y_seg);
       this.create_springs(x_seg, y_seg);
+
+     
+
     }
 
     toggle_wind() {
@@ -115,6 +124,10 @@ const Flag =
       if (!this.wind) {
         this.reset_velocities();
       }
+    }
+
+    update_wind_dir(wind_dir) {
+      this.wind_dir = wind_dir;
     }
 
     reset_velocities() {
@@ -132,13 +145,20 @@ const Flag =
     create_particles (w, h) {
       this.particles = [];
       for (let v = 0; v <= h; v++) {
+        //this.surface.push(new Array(this.w+1));
         for (let u = 0; u <= w; u++) {
           let p = new Particle(u * this.dist, v * this.dist, 0, this.particle_mass);
           if (u == 0) {
             p.controlled = true;
           }
           this.particles.push(p);
+          //this.surface[v][u] = vec3(u*this.dist, v*this.dist, 0);
       }
+
+      // //this.water_u[this.water_res*3/4][this.water_res/2] = -1;
+      // const row_operation    = (s,p)   => this.surface[0][Math.round(s*this.w)];
+      // const column_operation = (t,p,s) => this.surface[Math.round(0*this.h)][Math.round(s*this.w)];
+      // this.flag_surface = new defs.Grid_Patch(this.h, this.w, row_operation, column_operation);
     } 
   }
 
@@ -181,6 +201,7 @@ const Flag =
         if (this.wind) {
           let wind_strength = Math.cos( dt / 7000 ) * 1 + 2;
           let wind_force = vec3(Math.sin(dt / 2000), 0, 0).normalized().times(wind_strength);
+          wind_force = (this.wind_dir).times(wind_force)
           p.ext_force.add_by(wind_force);
         } 
       }
@@ -228,12 +249,13 @@ const Flag =
         shapes.box.draw(webgl_manager, uniforms, model_transform, { ...materials.pure_color, color: flag_color });
       }
 
+      //this.flag_surface.draw(webgl_manager, uniforms, Mat4.identity(), { ...materials.pure_color, color: flag_color });
       
       let model_transform = Mat4.scale(0.05, 0.05, 2.5);
       model_transform.pre_multiply(Mat4.rotation(Math.PI / 2, 1, 0, 0));
       model_transform.pre_multiply(Mat4.translation(0, -.5, 0));
       model_transform.pre_multiply(this.cloth_transform);
-      shapes.cylinder.draw(webgl_manager, uniforms, model_transform, { ...materials.pure_color });
+      shapes.cylinder.draw(webgl_manager, uniforms, model_transform, { ...materials.plastic, color: color(0,0,0,1) });
 
     }
   };
