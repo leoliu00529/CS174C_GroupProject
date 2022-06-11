@@ -262,6 +262,26 @@ const Project_base = defs.Project_base =
             this.terrain[x][z] = vec3(x_pos, h+2.1, z_pos);
           }
         }
+
+
+        // water
+        this.update_water = 0;
+        this.water_res = this.ground_res;
+        this.water_v = [];
+        this.water_u = [];
+        this.water_s = [];
+        for (let x = 0; x <= this.water_res; x ++){
+          this.water_v.push (new Array (this.water_res +1));
+          this.water_u.push (new Array (this.water_res +1));
+          this.water_s.push (new Array(this.water_res +1));
+          for(let z = 0; z <= this.water_res; z++){
+            const x_pos = x/this.water_res*10-5;
+            const z_pos = z/this.water_res*10-5
+            this.water_v[x][z] = 0;
+            this.water_u[x][z] = 0;
+            this.water_s[x][z] = vec3(x_pos, 2.1, z_pos);
+          }
+        }
       }
 
       render_animation( caller )
@@ -408,7 +428,20 @@ export class Project extends Project_base
       //let s = this.slope(t*3);
       let angle = Math.acos(this.animation_t**2/70);
       //let angle = Math.acos(1/Math.sqrt(s**2+1));
+      //this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.scale(.6, .4, .4)), { ...this.materials.plastic, color:color(0, 0, 0, 1)});
+      //this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(-1, 0, 0)).times(Mat4.scale(.2, .2, .2)), { ...this.materials.plastic, color:color(1, 1, 1, 1)});
+
       this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.scale(.6, .4, .4)), { ...this.materials.plastic, color:color(0, 0, 0, 1)});
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(-.4, -.2, .15)).times(Mat4.scale(.17, .07, .1)), { ...this.materials.plastic, color:color(1, 1, 1, 1)});
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(-.4, -.2, -.15)).times(Mat4.scale(.17, .07, .1)), { ...this.materials.plastic, color:color(1, 1, 1, 1)});
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(-.45, -.24, .14)).times(Mat4.scale(.06, .05, .05)), { ...this.materials.plastic, color:color(0, 0, 0, 1)});
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(-.45, -.24, -.14)).times(Mat4.scale(.06, .05, .05)), { ...this.materials.plastic, color:color(0, 0, 0, 1)});
+  
+      this.shapes.ball.draw(caller, this.uniforms,Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(.55, -.13, -.25)).times(Mat4.scale(.03, .2, .15)), { ...this.materials.plastic, color:color(255/256, 195/256, 18/256, 1)});
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(.55, -.13, .25)).times(Mat4.scale(.03, .2, .15)), { ...this.materials.plastic, color:color(255/256, 195/256, 18/256, 1)});
+      this.shapes.ball.draw(caller, this.uniforms, Mat4.translation(p_x, p_h+2.4, 0).times(Mat4.rotation(angle + Math.PI/2, 0,0,1)).times(Mat4.translation(-.22, -.23, 0)).times(Mat4.scale(.1, .3, .2)), { ...this.materials.plastic, color:color(247/256, 159/256, 31/256, 1)});
+  
+
 
       for(let z = this.ground_res/2-3; z <= this.ground_res/2+3; z++){
         const x_c = Math.round((p_x + 5)/10*this.ground_res);
@@ -578,7 +611,7 @@ export class Project extends Project_base
     this.water.surface.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
     //this.wall_water.draw(caller, this.uniforms, Mat4.identity(), this.materials.water);
     
-    this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
+    //this.shapes.axis.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.rgb);
 
     //this.shapes.cube.draw(caller, this.uniforms, Mat4.translation(0,5,0), this.materials.snow);
 
@@ -595,7 +628,6 @@ export class Project extends Project_base
   
   
     this.flag.draw(caller, this.uniforms, this.shapes, this.materials);  
-
 
 
 
