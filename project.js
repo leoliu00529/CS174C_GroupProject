@@ -393,15 +393,8 @@ export class Project extends Project_base
     }
 
     // Advance snowflake logic and graph all snowflakes.
-
-    // for (let each_snowflake of this.snowflakes) {
-    for (let index = this.snowflakes.length - 1; index >= 0; index --) {
-      let each_snowflake = this.snowflakes[index];
-      each_snowflake.advance(0.005);
-      if (Math.abs(each_snowflake.pos[0]) >= 5 || Math.abs(each_snowflake.pos[2] >= 5)) {
-        this.snowflakes.splice(index, 1);
-        continue;
-      }
+    for (let each_snowflake of this.snowflakes) {
+      each_snowflake.advance(0.01);
       this.graph_snowflake(each_snowflake, caller);
       // Update the terrain if snowflake below certain height.
       if (each_snowflake.pos[1] <= 3){
@@ -687,7 +680,7 @@ export class Project extends Project_base
         let x = each.pos[0];
         let z = each.pos[2];
         let dist_squared = x ** 2 + z ** 2;
-        const factor = 10;
+        const factor = 30 * (dist_squared/72);
 
         // Only spin the snowflakes that would not collide with the boundary.
         if (Math.sqrt(dist_squared) < 6) {
